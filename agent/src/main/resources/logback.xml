@@ -1,0 +1,35 @@
+<configuration>
+
+    <!-- Console lisible pour le développement -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss} [%-5level] %logger{20} — %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Fichier JSON structuré pour l'observabilité -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/app/logs/agent.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/app/logs/agent.%d{yyyy-MM-dd}.json</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>step</includeMdcKeyName>
+            <includeMdcKeyName>className</includeMdcKeyName>
+            <includeMdcKeyName>project</includeMdcKeyName>
+            <includeMdcKeyName>durationMs</includeMdcKeyName>
+            <includeMdcKeyName>status</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <!-- LangChain4j : on réduit le bruit -->
+    <logger name="dev.langchain4j" level="WARN"/>
+    <logger name="com.audensiel" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="JSON_FILE"/>
+    </root>
+
+</configuration>

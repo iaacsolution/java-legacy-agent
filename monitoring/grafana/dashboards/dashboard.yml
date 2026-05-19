@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: 'java-agent'
+    folder: 'Java Legacy Agent'
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards

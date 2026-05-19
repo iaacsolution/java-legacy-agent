@@ -1,0 +1,112 @@
+{
+  "title": "Java Legacy Migration Agent",
+  "uid": "java-legacy-agent",
+  "timezone": "browser",
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Taux de succès (%)",
+      "type": "gauge",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "thresholds": {
+          "steps": [
+            { "color": "red",    "value": 0   },
+            { "color": "orange", "value": 60  },
+            { "color": "green",  "value": 80  }
+          ]
+        },
+        "min": 0, "max": 100
+      },
+      "targets": [{
+        "expr": "agent_success_rate_pct",
+        "legendFormat": "{{project}}"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Fichiers analysés",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [{
+        "expr": "agent_files_success",
+        "legendFormat": "Succès"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Fichiers en erreur",
+      "type": "stat",
+      "gridPos": { "x": 10, "y": 0, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "color": "green", "value": 0 },
+            { "color": "red",   "value": 1 }
+          ]
+        }
+      },
+      "targets": [{
+        "expr": "agent_files_failed",
+        "legendFormat": "Erreurs"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Durée totale du run (ms)",
+      "type": "stat",
+      "gridPos": { "x": 14, "y": 0, "w": 5, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [{
+        "expr": "agent_run_duration_ms",
+        "legendFormat": "{{project}}"
+      }]
+    },
+    {
+      "id": 5,
+      "title": "Durée par étape (ms) — dernier run",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "options": { "xField": "step" },
+      "targets": [{
+        "expr": "agent_step_duration_ms",
+        "legendFormat": "{{step}}"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Historique taux de succès",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "agent_success_rate_pct",
+        "legendFormat": "{{project}}"
+      }]
+    },
+    {
+      "id": 7,
+      "title": "Étapes échouées (total)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
+      "targets": [{
+        "expr": "agent_steps_failed_total",
+        "legendFormat": "{{project}}"
+      }]
+    },
+    {
+      "id": 8,
+      "title": "Durée max / moy par étape (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "agent_step_max_ms",  "legendFormat": "Max" },
+        { "expr": "agent_step_avg_ms",  "legendFormat": "Moy" }
+      ]
+    }
+  ]
+}

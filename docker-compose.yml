@@ -1,0 +1,113 @@
+version: "3.9"
+
+services:
+
+  # ── Ollama — moteur LLM local ─────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  # ── Agent Java LangChain4j ───────────────────────────
+  java-agent:
+    build: ./agent
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - PUSHGATEWAY_URL=http://pushgateway:9091
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - ollama
+      - pushgateway
+    restart: "no"
+
+  # ── Prometheus Pushgateway — métriques batch agent ───
+  pushgateway:
+    image: prom/pushgateway:latest
+    ports:
+      - "9092:9091"
+    restart: unless-stopped
+
+  # ── Prometheus — scrape du Pushgateway ───────────────
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9093:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  # ── Grafana — dashboards agent ────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3003:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=Admin2024!
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ── Open WebUI — interface chat avec les modèles ──────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3002:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - webui_data:/app/backend/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  # ── Arize Phoenix — traçabilité et observabilité LLM ──
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"   # UI traces LLM
+      - "4317:4317"   # OTLP gRPC (OpenTelemetry ingest)
+    environment:
+      - PHOENIX_WORKING_DIR=/phoenix
+    volumes:
+      - phoenix_data:/phoenix
+    restart: unless-stopped
+
+  # ── Apache Airflow — orchestration de workflows ────────
+  airflow:
+    build: ./airflow
+    command: standalone
+    ports:
+      - "8083:8080"
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - _AIRFLOW_DB_MIGRATE=true
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=Admin2024!
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
+      - AIRFLOW__WEBSERVER__SECRET_KEY=java-legacy-demo-secret
+    volumes:
+      - airflow_data:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  webui_data:
+  grafana_data:
+  phoenix_data:
+  airflow_data:

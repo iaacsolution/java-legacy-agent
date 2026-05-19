@@ -1,0 +1,58 @@
+#!/bin/sh
+# Hook Git pre-commit — détection des changements cassants sur les signatures Java
+# Installation : cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+AGENT_IMAGE="java-legacy-agent-java-agent"
+PROJECT_PATH="/app/src"
+
+echo "=== Breaking Change Detector ==="
+
+# Récupère les fichiers Java modifiés dans le commit en cours
+CHANGED_JAVA=$(git diff --cached --name-only --diff-filter=M | grep "\.java$")
+
+if [ -z "$CHANGED_JAVA" ]; then
+    echo "Aucun fichier Java modifié — pas d'analyse d'impact."
+    exit 0
+fi
+
+BREAKING=0
+
+for FILE in $CHANGED_JAVA; do
+    # Extrait le nom de classe depuis le chemin (ex: src/.../ClientServiceBean.java)
+    CLASS=$(basename "$FILE" .java)
+
+    # Récupère les signatures de méthodes modifiées via git diff
+    METHODS=$(git diff --cached "$FILE" | grep "^-.*public\|^-.*protected" \
+        | grep -oP '(?<=\s)\w+(?=\()' | sort -u)
+
+    for METHOD in $METHODS; do
+        echo "Analyse impact : $CLASS.$METHOD()"
+
+        # Lance l'agent Java en Docker
+        RESULT=$(docker run --rm \
+            -v "$(pwd):/project" \
+            "$AGENT_IMAGE" \
+            impact /project "$CLASS" "$METHOD" --json 2>/dev/null)
+
+        SEVERITY=$(echo "$RESULT" | grep -oP '(?<="severity": ")[^"]+')
+        CALLERS=$(echo "$RESULT" | grep -oP '(?<="callers_count": )\d+')
+
+        if [ "$SEVERITY" = "HIGH" ] || [ "$SEVERITY" = "CRITICAL" ]; then
+            echo "BLOQUÉ : $CLASS.$METHOD() — $CALLERS appelant(s) — sévérité $SEVERITY"
+            echo "$RESULT"
+            BREAKING=1
+        elif [ -n "$CALLERS" ] && [ "$CALLERS" -gt 0 ]; then
+            echo "AVERTISSEMENT : $CLASS.$METHOD() — $CALLERS appelant(s) — sévérité $SEVERITY"
+        fi
+    done
+done
+
+if [ "$BREAKING" -eq 1 ]; then
+    echo ""
+    echo "Commit bloqué — changements cassants détectés."
+    echo "Corrigez les appelants ou utilisez @Deprecated en transition."
+    exit 1
+fi
+
+echo "Analyse terminée — aucun changement cassant bloquant."
+exit 0
