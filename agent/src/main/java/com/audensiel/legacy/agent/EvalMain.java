@@ -209,7 +209,7 @@ public class EvalMain {
 
         // ── CodeAnalyzer LLM ──────────────────────────────────────
         System.out.println("  → Appel LLM pour l'analyse...");
-        String llmOutput = docAgent.analyzeJavaClass(code, "");
+        String llmOutput = docAgent.analyzeJavaClass(code, "", false, false);
 
         AgentEvaluator.EvalResult riskResult = evaluator.evaluateKeywords(llmOutput, gtRisks);
         AgentEvaluator.printReport("Risques (LLM keyword recall)", riskResult);
