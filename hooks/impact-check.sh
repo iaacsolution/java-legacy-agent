@@ -9,13 +9,7 @@
 
 AGENT_IMAGE="java-legacy-agent-java-agent"
 SRC_PATH="agent/src"
-CSV_FILE="impact-roi.csv"
 BREAKING=0
-
-# Entête CSV si nouveau fichier
-if [ ! -f "$CSV_FILE" ]; then
-    echo "timestamp,class,method,severity,callers_count,callers,blocked,strategy,duration_ms" > "$CSV_FILE"
-fi
 
 echo "=== Java Breaking Change Detector ==="
 
@@ -64,15 +58,9 @@ for FILE in "$@"; do
                     echo "  ---------------------------------------------"
                 fi
 
-                # Log CSV ROI
-                echo "${TIMESTAMP},${CLASS},${METHOD},${SEVERITY},${CALLERS},\"${CALLERS_LIST}\",${BLOCKED},${STRATEGY},${DURATION}" \
-                    >> "$CSV_FILE"
                 ;;
             LOW)
-                BLOCKED="false"
                 echo "  AVERTISSEMENT : $CALLERS appelant(s) — LOW"
-                echo "${TIMESTAMP},${CLASS},${METHOD},LOW,${CALLERS},\"${CALLERS_LIST}\",false,DIRECT_UPDATE,${DURATION}" \
-                    >> "$CSV_FILE"
                 ;;
             NONE)
                 echo "  OK — aucun appelant ($DURATION ms)"

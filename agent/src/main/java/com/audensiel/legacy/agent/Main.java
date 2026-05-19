@@ -89,8 +89,13 @@ public class Main {
                 System.out.println(report.toConsoleReport());
             }
 
-            // Exit code non-zero si changement cassant — permet au hook CI de bloquer
-            if (report.isBreaking()) System.exit(1);
+            // Log CSV ROI depuis Java (Linux Docker → pas de CRLF Windows)
+            if (report.isBreaking()) {
+                Path csvRoot = projectPath.getParent() != null
+                        ? projectPath.getParent().getParent() : projectPath;
+                RoiLogger.log(csvRoot, report);
+                System.exit(1);
+            }
 
         } else if (args.length >= 1 && args[0].equals("eval")) {
             // ── Mode évaluation F1 ──────────────────────────────────
