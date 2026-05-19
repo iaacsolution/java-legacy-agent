@@ -105,7 +105,7 @@ public class Main {
             MigrationPlannerAgent plannerAgent = new MigrationPlannerAgent(ollamaUrl);
 
             System.out.println("🔍 Étape 1/2 — Analyse du code legacy...");
-            String specs = docAgent.analyzeJavaClass(SAMPLE_LEGACY_CODE);
+            String specs = docAgent.analyzeJavaClass(SAMPLE_LEGACY_CODE, "");
 
             System.out.println("\n" + "─".repeat(60));
             System.out.println("🗺️  Étape 2/2 — Génération du plan de migration...");
@@ -144,7 +144,7 @@ public class Main {
             JavaDocumentationAgent agent = new JavaDocumentationAgent(ollamaUrl);
 
             String specs = metrics.track("ClientServiceBean", "analyze",
-                    () -> agent.analyzeJavaClass(SAMPLE_LEGACY_CODE));
+                    () -> agent.analyzeJavaClass(SAMPLE_LEGACY_CODE, ""));
             metrics.recordFile(true);
             System.out.println("\n## Spécifications extraites (vision micro)\n");
             System.out.println(specs);

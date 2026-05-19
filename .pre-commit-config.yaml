@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: java-breaking-change
+        name: Java Breaking Change Detector (AST + MD5 Cache)
+        entry: hooks/impact-check.sh
+        language: script
+        files: \.java$
+        pass_filenames: true
+        stages: [pre-commit]
+        verbose: true

@@ -28,16 +28,18 @@ for FILE in $CHANGED_JAVA; do
     for METHOD in $METHODS; do
         echo "Analyse impact : $CLASS.$METHOD()"
 
-        # Lance l'agent Java en Docker
-        RESULT=$(docker run --rm \
-            -v "$(pwd):/project" \
+        # Chemin Windows pour Docker (via PowerShell pour éviter la conversion Git Bash)
+        WIN_PATH=$(powershell.exe -Command "(Get-Location).Path" 2>/dev/null | tr -d '\r\n')
+        RESULT=$(MSYS_NO_PATHCONV=1 docker run --rm \
+            -v "${WIN_PATH}:/project" \
             "$AGENT_IMAGE" \
-            impact /project "$CLASS" "$METHOD" --json 2>/dev/null)
+            impact /project/agent/src "$CLASS" "$METHOD" --json 2>&1)
+        echo "DEBUG severity=$SEVERITY callers=$CALLERS"
 
         SEVERITY=$(echo "$RESULT" | grep -oP '(?<="severity": ")[^"]+')
         CALLERS=$(echo "$RESULT" | grep -oP '(?<="callers_count": )\d+')
 
-        if [ "$SEVERITY" = "HIGH" ] || [ "$SEVERITY" = "CRITICAL" ]; then
+        if [ "$SEVERITY" = "MEDIUM" ] || [ "$SEVERITY" = "HIGH" ] || [ "$SEVERITY" = "CRITICAL" ]; then
             echo "BLOQUÉ : $CLASS.$METHOD() — $CALLERS appelant(s) — sévérité $SEVERITY"
             echo "$RESULT"
             BREAKING=1

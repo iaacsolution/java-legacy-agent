@@ -1,0 +1,7 @@
+- id: java-breaking-change
+  name: Java Breaking Change Detector
+  description: Scanne l'AST Java avec JavaParser et bloque les changements de signature cassants.
+  entry: hooks/impact-check.sh
+  language: script
+  files: \.java$
+  stages: [pre-commit]

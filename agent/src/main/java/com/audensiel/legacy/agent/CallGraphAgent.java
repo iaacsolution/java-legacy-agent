@@ -13,12 +13,10 @@ import java.util.stream.Collectors;
 
 /**
  * Construit le graphe d'appels inter-méthodes d'un projet Java via JavaParser.
- * Pour chaque méthode déclarée, liste tous les sites d'appel dans le projet.
- * Utilisé par BreakingChangeDetector pour identifier les appels entrants cassants.
+ * Cache JSON incrémental : re-scanne uniquement les fichiers modifiés depuis le dernier run.
  */
 public class CallGraphAgent {
 
-    /** Clé : "ClassName.methodName" → liste des callers "CallerClass.callerMethod:line" */
     public record CallGraph(Map<String, List<String>> callers) {
 
         public List<String> callersOf(String className, String methodName) {
@@ -31,13 +29,9 @@ public class CallGraphAgent {
     }
 
     private final JavaParser parser = new JavaParser(
-        new ParserConfiguration()
-            .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17)
+        new ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17)
     );
 
-    /**
-     * Scanne récursivement tous les .java du projet et construit le call graph.
-     */
     public CallGraph buildCallGraph(Path projectRoot) throws IOException {
         List<Path> javaFiles = Files.walk(projectRoot)
                 .filter(p -> p.toString().endsWith(".java"))
@@ -45,16 +39,60 @@ public class CallGraphAgent {
 
         System.out.println("[CallGraph] " + javaFiles.size() + " fichiers Java trouvés dans " + projectRoot);
 
-        // Étape 1 — collecter toutes les déclarations de méthodes (className.methodName)
+        // Cache à la racine du volume monté (parent du src/) pour éviter les problèmes de droits
+        Path cacheRoot = projectRoot.getParent() != null ? projectRoot.getParent().getParent() : projectRoot;
+        Optional<CallGraphCache.CacheEntry> cacheOpt = CallGraphCache.load(cacheRoot);
+        Map<String, List<String>> callers;
+        Map<String, String> hashes;
+
+        if (cacheOpt.isPresent()) {
+            CallGraphCache.CacheEntry cache = cacheOpt.get();
+            List<Path> stale = CallGraphCache.staleFiles(cache.fileHashes(), javaFiles);
+
+            if (stale.isEmpty()) {
+                System.out.println("[CallGraph] Cache valide — 0 fichier modifié (scan ignoré)");
+                return new CallGraph(cache.callers());
+            }
+
+            System.out.println("[CallGraph] Cache partiel — " + stale.size() + " fichier(s) à re-scanner");
+            callers = new LinkedHashMap<>(cache.callers());
+            hashes  = new LinkedHashMap<>(cache.fileHashes());
+
+            for (Path staleFile : stale) {
+                hashes.remove(staleFile.toString());
+                String fname = staleFile.getFileName().toString().replace(".java", "");
+                callers.entrySet().removeIf(e ->
+                        e.getKey().startsWith(fname + ".") ||
+                        e.getValue().removeIf(c -> c.startsWith(fname + ".")));
+            }
+            scanFiles(stale, callers, hashes);
+
+        } else {
+            System.out.println("[CallGraph] Pas de cache — scan complet");
+            callers = new LinkedHashMap<>();
+            hashes  = new LinkedHashMap<>();
+            scanFiles(javaFiles, callers, hashes);
+        }
+
+        CallGraphCache.save(cacheRoot, hashes, callers);
+        System.out.println("[CallGraph] " + callers.size() + " méthodes indexées — cache sauvegardé");
+        return new CallGraph(callers);
+    }
+
+    private void scanFiles(List<Path> files, Map<String, List<String>> callers,
+                           Map<String, String> hashes) throws IOException {
+
+        // Étape 1 — collecter les déclarations de méthodes dans les fichiers scannés
         Set<String> allMethods = new HashSet<>();
         Map<Path, CompilationUnit> parsedFiles = new LinkedHashMap<>();
 
-        for (Path file : javaFiles) {
+        for (Path file : files) {
             try {
                 var result = parser.parse(file);
                 if (result.isSuccessful() && result.getResult().isPresent()) {
                     CompilationUnit cu = result.getResult().get();
                     parsedFiles.put(file, cu);
+                    hashes.put(file.toString(), CallGraphCache.md5(file));
                     cu.findAll(MethodDeclaration.class).forEach(m -> {
                         String className = m.findAncestor(
                                 com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class)
@@ -68,34 +106,27 @@ public class CallGraphAgent {
                 System.out.println("[CallGraph] Erreur : " + file.getFileName() + " — " + e.getMessage());
             }
         }
-        System.out.println("[CallGraph] " + allMethods.size() + " méthodes déclarées, " + parsedFiles.size() + " fichiers parsés");
+        System.out.println("[CallGraph] " + allMethods.size() + " méthodes déclarées, "
+                + parsedFiles.size() + " fichiers parsés");
 
-        // Étape 2 — pour chaque appel de méthode, enregistrer le caller
-        Map<String, List<String>> callers = new LinkedHashMap<>();
-
+        // Étape 2 — enregistrer les appels entrants
         for (var entry : parsedFiles.entrySet()) {
             CompilationUnit cu = entry.getValue();
             cu.findAll(MethodCallExpr.class).forEach(call -> {
                 String calledMethod = call.getNameAsString();
-
-                // Cherche la méthode englobante
-                String callerClass = call.findAncestor(
+                String callerClass  = call.findAncestor(
                         com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class)
                         .map(c -> c.getNameAsString()).orElse("Unknown");
                 String callerMethod = call.findAncestor(MethodDeclaration.class)
                         .map(m -> m.getNameAsString()).orElse("<init>");
                 int line = call.getBegin().map(p -> p.line).orElse(-1);
-
                 String callerRef = callerClass + "." + callerMethod + ":" + line;
 
-                // Associe l'appel à toutes les déclarations dont le nom correspond
                 allMethods.stream()
                         .filter(m -> m.endsWith("." + calledMethod))
                         .forEach(target ->
                                 callers.computeIfAbsent(target, k -> new ArrayList<>()).add(callerRef));
             });
         }
-
-        return new CallGraph(callers);
     }
 }
