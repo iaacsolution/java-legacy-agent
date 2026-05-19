@@ -86,7 +86,7 @@ public class JavaDocumentationAgent {
     /**
      * Analyse un fichier Java et retourne les spécifications extraites.
      */
-    public String analyzeJavaClass(String javaCode, String context) {
+    analyzeJavaClass(String javaCode, String context, boolean strict)
 
         System.out.println("🔍 Analyse du code avec Qwen2.5-Coder...");
         return codeAnalyzer.analyzeCode(javaCode);
