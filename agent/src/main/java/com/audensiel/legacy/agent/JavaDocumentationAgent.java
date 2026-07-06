@@ -1,6 +1,6 @@
 package com.audensiel.legacy.agent;
 
-import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
@@ -63,21 +63,8 @@ public class JavaDocumentationAgent {
     private final DocumentationSynthesizer synthesizer;
 
     public JavaDocumentationAgent(String ollamaBaseUrl) {
-        // Modèle micro — Qwen2.5-Coder pour l'analyse unitaire
-        OllamaChatModel coderModel = OllamaChatModel.builder()
-                .baseUrl(ollamaBaseUrl)
-                .modelName("qwen2.5-coder:7b")
-                .temperature(0.1)  // précision maximale pour le code
-                .timeout(Duration.ofMinutes(15))
-                .build();
-
-        // Modèle macro — Qwen2.5-Coder pour la synthèse documentaire
-        OllamaChatModel synthModel = OllamaChatModel.builder()
-                .baseUrl(ollamaBaseUrl)
-                .modelName("qwen2.5-coder:7b")
-                .temperature(0.3)
-                .timeout(Duration.ofMinutes(15))
-                .build();
+        ChatLanguageModel coderModel = LlmModelFactory.create(ollamaBaseUrl, 0.1, Duration.ofMinutes(15));
+        ChatLanguageModel synthModel  = LlmModelFactory.create(ollamaBaseUrl, 0.3, Duration.ofMinutes(15));
 
         this.codeAnalyzer = AiServices.create(CodeAnalyzer.class, coderModel);
         this.synthesizer   = AiServices.create(DocumentationSynthesizer.class, synthModel);

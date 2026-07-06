@@ -33,6 +33,13 @@
             <version>${langchain4j.version}</version>
         </dependency>
 
+        <!-- LangChain4j Anthropic — fallback cloud quand ANTHROPIC_API_KEY est défini -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-anthropic</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
         <!-- JavaParser — analyse syntaxique AST (remplace regex DependencyMapper) -->
         <dependency>
             <groupId>com.github.javaparser</groupId>

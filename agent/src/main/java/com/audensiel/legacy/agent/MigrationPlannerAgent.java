@@ -1,6 +1,6 @@
 package com.audensiel.legacy.agent;
 
-import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
@@ -39,13 +39,7 @@ public class MigrationPlannerAgent {
     private final MigrationPlanner planner;
 
     public MigrationPlannerAgent(String ollamaBaseUrl) {
-        OllamaChatModel model = OllamaChatModel.builder()
-                .baseUrl(ollamaBaseUrl)
-                .modelName("qwen2.5-coder:7b")
-                .temperature(0.2)
-                .timeout(Duration.ofMinutes(10))
-                .build();
-
+        ChatLanguageModel model = LlmModelFactory.create(ollamaBaseUrl, 0.2, Duration.ofMinutes(10));
         this.planner = AiServices.create(MigrationPlanner.class, model);
     }
 
