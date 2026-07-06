@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Collecte et exporte les métriques d'exécution du pipeline.
@@ -44,10 +46,10 @@ public class RunMetrics {
 
     private final String projectName;
     private final Instant startTime = Instant.now();
-    private final List<StepMetric> steps = new ArrayList<>();
-    private int filesTotal;
-    private int filesSuccess;
-    private int filesFailed;
+    private final List<StepMetric> steps = new CopyOnWriteArrayList<>();
+    private final AtomicInteger filesTotal   = new AtomicInteger();
+    private final AtomicInteger filesSuccess = new AtomicInteger();
+    private final AtomicInteger filesFailed  = new AtomicInteger();
 
     public RunMetrics(String projectName) {
         this.projectName = projectName;
@@ -81,8 +83,8 @@ public class RunMetrics {
     }
 
     public void recordFile(boolean success) {
-        filesTotal++;
-        if (success) filesSuccess++; else filesFailed++;
+        filesTotal.incrementAndGet();
+        if (success) filesSuccess.incrementAndGet(); else filesFailed.incrementAndGet();
     }
 
     // ── Construit le résumé pour le Pusher ──────────────────────────────────
@@ -91,7 +93,7 @@ public class RunMetrics {
         long avgMs       = steps.isEmpty() ? 0 : steps.stream().mapToLong(StepMetric::durationMs).sum() / steps.size();
         long maxMs       = steps.stream().mapToLong(StepMetric::durationMs).max().orElse(0);
         long failedSteps = steps.stream().filter(s -> s.status() == Status.FAILED).count();
-        double rate      = filesTotal > 0 ? (double) filesSuccess / filesTotal * 100 : 0;
+        double rate      = filesTotal.get() > 0 ? (double) filesSuccess.get() / filesTotal.get() * 100 : 0;
 
         // Durée par nom d'étape (moyenne si plusieurs fichiers)
         Map<String, List<Long>> byStep = new LinkedHashMap<>();
@@ -102,7 +104,7 @@ public class RunMetrics {
         byStep.forEach((step, durations) ->
                 stepDurations.put(step, (long) durations.stream().mapToLong(Long::longValue).average().orElse(0)));
 
-        return new RunSummary(totalMs, filesTotal, filesSuccess, filesFailed,
+        return new RunSummary(totalMs, filesTotal.get(), filesSuccess.get(), filesFailed.get(),
                 rate, failedSteps, avgMs, maxMs, stepDurations);
     }
 

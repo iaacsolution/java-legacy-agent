@@ -60,9 +60,13 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         String ollamaUrl = System.getenv().getOrDefault("OLLAMA_BASE_URL", "http://localhost:11434");
+        String otlpEndpoint = System.getenv().getOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317");
+
+        PipelineTracer.init(otlpEndpoint);
 
         System.out.println("🚀 Java Legacy Migration Agent");
         System.out.println("📡 Ollama URL: " + ollamaUrl);
+        System.out.println("📊 OTLP endpoint: " + otlpEndpoint);
         System.out.println("─".repeat(60));
 
         String pushgatewayUrl = System.getenv().getOrDefault("PUSHGATEWAY_URL", "http://pushgateway:9091");
@@ -137,6 +141,7 @@ public class Main {
 
             LegacyMigrationOrchestrator orchestrator = new LegacyMigrationOrchestrator(ollamaUrl, pushgatewayUrl);
             orchestrator.run(projectPath, outputDir);
+            PipelineTracer.shutdown(); // flush BatchSpanProcessor avant exit
 
         } else {
             // ── Mode démo : exemple EJB intégré avec métriques ──────

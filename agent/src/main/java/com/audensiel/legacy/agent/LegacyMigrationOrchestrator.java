@@ -9,7 +9,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 import java.util.function.Function;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 
 /**
  * Orchestrateur principal — coordonne les agents pour produire un dossier de migration.
@@ -25,6 +30,9 @@ public class LegacyMigrationOrchestrator {
 
     private static final Logger log = LoggerFactory.getLogger(LegacyMigrationOrchestrator.class);
     private static final int MAX_RETRIES = 3;
+    private static final int DEFAULT_WORKERS = 4;
+
+    private record ClassResult(AstParserAgent.AstAnalysis ast, String specs, long startMs, long endMs) {}
 
     private final FileScannerAgent        scanner;
     private final AstParserAgent          astParser;
@@ -46,6 +54,13 @@ public class LegacyMigrationOrchestrator {
 
         String projectName = projectPath.getFileName().toString();
         RunMetrics metrics = new RunMetrics(projectName);
+        Tracer tracer = PipelineTracer.get();
+
+        // Span racine — couvre tout le batch (métrique 2 : durée totale du lot)
+        Span batchSpan = tracer.spanBuilder("batch")
+            .setAttribute("project.name", projectName)
+            .startSpan();
+        Context batchCtx = Context.current().with(batchSpan);
 
         System.out.println("=".repeat(60));
         System.out.println("  LEGACY MIGRATION ORCHESTRATOR");
@@ -63,40 +78,126 @@ public class LegacyMigrationOrchestrator {
             return;
         }
 
-        // ── Étape 2 : AST + analyse LLM enrichie ─────────────────
-        System.out.println("\n[2/5] Analyse AST + LLM par classe...");
-        List<AstParserAgent.AstAnalysis> astResults = new ArrayList<>();
-        List<String> allSpecs = new ArrayList<>();
+        // ── Étape 2 : AST + analyse LLM enrichie (parallèle) ────────
+        int workers = Integer.parseInt(System.getenv().getOrDefault("AGENT_WORKERS", String.valueOf(DEFAULT_WORKERS)));
+        System.out.printf("\n[2/5] Analyse AST + LLM par classe (workers=%d)...%n", workers);
+        log.info("Démarrage analyse parallèle — classes={} workers={}", javaFiles.size(), workers);
+
+        // Compléter le span racine avec les attributs du lot (maintenant que javaFiles est connu)
+        batchSpan.setAttribute("batch.size", javaFiles.size());
+        batchSpan.setAttribute("workers", workers);
+
+        ExecutorService pool = Executors.newFixedThreadPool(workers);
+        List<Future<ClassResult>> futures = new ArrayList<>();
+        final long batchStartMs = System.currentTimeMillis();
 
         for (int i = 0; i < javaFiles.size(); i++) {
-            FileScannerAgent.JavaFile file = javaFiles.get(i);
-            System.out.printf("  -> (%d/%d) %s%n", i + 1, javaFiles.size(), file.className());
+            final FileScannerAgent.JavaFile file = javaFiles.get(i);
+            final Context capturedCtx = batchCtx;
+            futures.add(pool.submit(() -> {
+                long startMs = System.currentTimeMillis();
+                Span classSpan = tracer.spanBuilder("analyze")
+                    .setParent(capturedCtx)
+                    .setAttribute("class.name", file.className())
+                    .startSpan();
+                try (Scope ignored = classSpan.makeCurrent()) {
+                    AstParserAgent.AstAnalysis ast = metrics.track(
+                            file.className(), "ast", () -> astParser.analyze(file));
 
-            // AST instantané (pas de LLM — déterministe)
-            AstParserAgent.AstAnalysis ast = metrics.track(
-                    file.className(), "ast", () -> astParser.analyze(file));
-            astResults.add(ast);
+                    if (ast.cyclomaticComplexity() > 10) {
+                        log.warn("Complexité cyclomatique élevée — classe={} cc={}", file.className(), ast.cyclomaticComplexity());
+                        System.out.printf("    [CC=%d] classe complexe — analyse approfondie : %s%n",
+                                ast.cyclomaticComplexity(), file.className());
+                    }
 
-            // Complexité élevée → loggée pour arbitrage manuel
-            if (ast.cyclomaticComplexity() > 10) {
-                log.warn("Complexité cyclomatique élevée — classe={} cc={}", file.className(), ast.cyclomaticComplexity());
-                System.out.printf("    [CC=%d] classe complexe — analyse approfondie%n", ast.cyclomaticComplexity());
-            }
+                    classSpan.setAttribute("cyclomatic_complexity", ast.cyclomaticComplexity());
 
-            // Analyse LLM avec contexte AST injecté dans le prompt + retry gate
-            final AstParserAgent.AstAnalysis finalAst = ast;
-            AnalysisCommand<String> analyzeCmd = AnalysisCommand.of(
-                    "analyze:" + file.className(),
-                    () -> documentationAgent.analyzeJavaClassWithAst(file.content(), finalAst)
-            );
+                    AnalysisCommand<String> analyzeCmd = AnalysisCommand.of(
+                            "analyze:" + file.className(),
+                            () -> documentationAgent.analyzeJavaClassWithAst(file.content(), ast));
 
-            String specs = executeWithRetry(
-                    file.className(), "analyze", metrics, analyzeCmd,
-                    output -> validator.validateAnalysis(file.className(), output));
+                    String specs = executeWithRetry(
+                            file.className(), "analyze", metrics, analyzeCmd,
+                            output -> validator.validateAnalysis(file.className(), output));
 
-            allSpecs.add("### " + file.className() + "\n\n" + specs);
-            metrics.recordFile(!specs.startsWith("_[Génération échouée"));
+                    boolean ok = !specs.startsWith("_[Génération échouée");
+                    classSpan.setAttribute("success", ok);
+                    metrics.recordFile(ok);
+                    long endMs = System.currentTimeMillis();
+                    return new ClassResult(ast, specs, startMs - batchStartMs, endMs - batchStartMs);
+                } catch (Exception e) {
+                    classSpan.recordException(e);
+                    throw e;
+                } finally {
+                    classSpan.end();
+                }
+            }));
         }
+
+        pool.shutdown();
+
+        List<AstParserAgent.AstAnalysis> astResults = new ArrayList<>();
+        List<String> allSpecs = new ArrayList<>();
+        record TimingRow(String name, long startMs, long endMs) {}
+        List<TimingRow> timings = new ArrayList<>();
+        int completed = 0;
+
+        for (int i = 0; i < futures.size(); i++) {
+            String className = javaFiles.get(i).className();
+            try {
+                ClassResult result = futures.get(i).get();
+                astResults.add(result.ast());
+                allSpecs.add("### " + className + "\n\n" + result.specs());
+                timings.add(new TimingRow(className, result.startMs(), result.endMs()));
+                completed++;
+                System.out.printf("  [%d/%d] %s termine%n", completed, javaFiles.size(), className);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Pipeline interrompu — classe={}", className);
+                astResults.add(null);
+                allSpecs.add("### " + className + "\n\n_[Generation interrompue]_");
+                timings.add(new TimingRow(className, 0, 0));
+            } catch (ExecutionException e) {
+                log.error("Echec analyse — classe={} erreur={}", className, e.getCause().getMessage());
+                metrics.recordFile(false);
+                astResults.add(null);
+                allSpecs.add("### " + className + "\n\n_[Generation echouee]_");
+                timings.add(new TimingRow(className, 0, 0));
+            }
+        }
+
+        try {
+            pool.awaitTermination(4, TimeUnit.HOURS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // ── Tableau de timeline (3 metriques d'observation) ──────────
+        long batchTotalMs = System.currentTimeMillis() - batchStartMs;
+        System.out.println("\n" + "=".repeat(62));
+        System.out.printf("  TIMELINE PARALLELE  (workers=%d, classes=%d)%n", workers, javaFiles.size());
+        System.out.println("=".repeat(62));
+        System.out.printf("  %-28s %7s %7s %9s%n", "CLASSE", "DEBUT", "FIN", "DUREE");
+        System.out.println("  " + "-".repeat(58));
+
+        long prevEndMs = 0;
+        for (TimingRow t : timings) {
+            long durMs = t.endMs() - t.startMs();
+            String parallel = (t.startMs() < prevEndMs && t.startMs() > 0) ? " <<" : "";
+            System.out.printf("  %-28s %7s %7s %9s%s%n",
+                t.name().length() > 28 ? t.name().substring(0, 25) + "..." : t.name(),
+                fmtMs(t.startMs()),
+                fmtMs(t.endMs()),
+                fmtDur(durMs),
+                parallel);
+            if (t.endMs() > prevEndMs) prevEndMs = t.endMs();
+        }
+
+        System.out.println("  " + "-".repeat(58));
+        System.out.printf("  %-28s %7s %7s %9s%n",
+            "LOT TOTAL", "00:00", fmtMs(batchTotalMs), fmtDur(batchTotalMs));
+        System.out.println("  << = classe demarree en parallele avec la precedente");
+        System.out.println("=".repeat(62));
 
         String aggregatedSpecs = String.join("\n\n---\n\n", allSpecs);
 
@@ -136,6 +237,8 @@ public class LegacyMigrationOrchestrator {
         metrics.exportJson(outputDir);
         metrics.printSummary();
         metricsPusher.push(projectName, metrics.buildSummary());
+
+        batchSpan.end(); // ferme le span racine — durée totale du lot enregistrée
 
         System.out.println("\n" + "=".repeat(60));
         System.out.println("Rapport : " + outputFile);
@@ -182,6 +285,16 @@ public class LegacyMigrationOrchestrator {
         log.error("Gate qualité épuisé après {} tentatives — escalade fallback cmd={}", MAX_RETRIES, command.describe());
         System.out.printf("    [ESCALADE] %d tentatives échouées pour %s — fallback activé%n", MAX_RETRIES, className);
         return validator.fallback(className);
+    }
+
+    private static String fmtMs(long ms) {
+        long s = ms / 1000;
+        return String.format("%02d:%02d", s / 60, s % 60);
+    }
+
+    private static String fmtDur(long ms) {
+        long s = ms / 1000;
+        return s >= 60 ? String.format("%dm%02ds", s / 60, s % 60) : s + "s";
     }
 
     private String buildReport(Path projectPath, int fileCount,
