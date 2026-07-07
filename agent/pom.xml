@@ -33,10 +33,17 @@
             <version>${langchain4j.version}</version>
         </dependency>
 
-        <!-- LangChain4j Anthropic — fallback cloud quand ANTHROPIC_API_KEY est défini -->
+        <!-- LangChain4j Anthropic — cloud quand ANTHROPIC_API_KEY est défini -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-anthropic</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <!-- LangChain4j OpenAI-compatible — pour vLLM local GPU (VLLM_BASE_URL) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
             <version>${langchain4j.version}</version>
         </dependency>
 

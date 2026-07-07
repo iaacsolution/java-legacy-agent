@@ -2,27 +2,62 @@ version: "3.9"
 
 services:
 
-  # ── Ollama — moteur LLM local ─────────────────────────
-  ollama:
-    image: ollama/ollama:latest
+  # ── vLLM — inférence GPU locale, OpenAI-compatible ───
+  # Continuous batching : parallélise réellement les N workers Java.
+  # Nécessite nvidia-container-toolkit + GPU avec ≥8 GB VRAM.
+  # Désactiver en commentant ce bloc et en activant "ollama" ci-dessous.
+  vllm:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
     ports:
-      - "11434:11434"
+      - "8000:8000"
     environment:
-      - OLLAMA_KEEP_ALIVE=24h
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    command: >
+      --model Qwen/Qwen2.5-Coder-7B-Instruct
+      --tensor-parallel-size 1
+      --max-model-len 4096
+      --gpu-memory-utilization 0.85
     volumes:
-      - ollama_data:/root/.ollama
+      - vllm_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: unless-stopped
+
+  # ── Ollama — fallback CPU (sérialise les requêtes LLM) ─
+  # Activer si pas de GPU disponible. Mettre AGENT_WORKERS=1.
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   environment:
+  #     - OLLAMA_KEEP_ALIVE=24h
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
 
   # ── Agent Java LangChain4j ───────────────────────────
   java-agent:
     build: ./agent
     environment:
+      # vLLM (GPU local, parallélisme réel) — priorité 1
+      - VLLM_BASE_URL=http://vllm:8000
+      # Anthropic cloud — priorité 2 si pas de GPU
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Ollama CPU — priorité 3 (fallback, mettre AGENT_WORKERS=1)
       - OLLAMA_BASE_URL=http://ollama:11434
+      - AGENT_WORKERS=4
       - PUSHGATEWAY_URL=http://pushgateway:9091
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:4317
     volumes:
       - ./logs:/app/logs
     depends_on:
-      - ollama
+      - vllm
       - pushgateway
     restart: "no"
 
@@ -106,6 +141,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  vllm_cache:
   ollama_data:
   webui_data:
   grafana_data:
