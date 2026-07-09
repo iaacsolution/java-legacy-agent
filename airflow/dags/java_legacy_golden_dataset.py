@@ -16,6 +16,9 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 # ── Configuration ───────────────────────────────────────────────────────────
+# Priorité identique à LlmModelFactory (agent Java) : vLLM GPU → Ollama CPU → golden dataset.
+VLLM_URL     = "http://vllm:8000/v1/chat/completions"
+VLLM_MODEL   = "Qwen/Qwen2.5-Coder-7B-Instruct"
 OLLAMA_URL   = "http://ollama:11434/api/generate"
 PHOENIX_OTLP = "http://phoenix:6006/v1/traces"
 MODEL        = "qwen2.5-coder:7b"
@@ -264,9 +267,31 @@ MOCK_RESPONSES = {
     ),
 }
 
-def _call_ollama(prompt: str, complexity: str = "simple", timeout: int = 300) -> tuple[str, int]:
-    """Appelle Ollama. Si indisponible, retourne une réponse de référence (golden dataset)."""
+def _call_vllm(prompt: str, timeout: int) -> str | None:
+    """Essaie vLLM (GPU, continuous batching) — priorité 1. None si indisponible."""
+    try:
+        resp = requests.post(VLLM_URL, json={
+            "model": VLLM_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 256,
+            "temperature": 0.1,
+        }, timeout=timeout)
+        if resp.status_code == 200:
+            return resp.json()["choices"][0]["message"]["content"]
+        print(f"[vLLM] {resp.status_code} — bascule sur Ollama")
+    except Exception as e:
+        print(f"[vLLM] Indisponible ({e}) — bascule sur Ollama")
+    return None
+
+
+def _call_llm(prompt: str, complexity: str = "simple", timeout: int = 300) -> tuple[str, int, str, str]:
+    """vLLM (GPU) → Ollama (CPU) → golden dataset, même priorité que LlmModelFactory (agent Java)."""
     start = time.monotonic()
+
+    vllm_output = _call_vllm(prompt, timeout=min(timeout, 60))
+    if vllm_output is not None:
+        return vllm_output, int((time.monotonic() - start) * 1000), "vllm", VLLM_MODEL
+
     try:
         resp = requests.post(OLLAMA_URL, json={
             "model": MODEL,
@@ -276,14 +301,14 @@ def _call_ollama(prompt: str, complexity: str = "simple", timeout: int = 300) ->
         }, timeout=timeout)
         if resp.status_code == 200:
             duration_ms = int((time.monotonic() - start) * 1000)
-            return resp.json().get("response", ""), duration_ms
+            return resp.json().get("response", ""), duration_ms, "ollama", MODEL
         print(f"[Ollama] {resp.status_code} — utilisation réponse golden dataset")
     except Exception as e:
         print(f"[Ollama] Indisponible ({e}) — utilisation réponse golden dataset")
 
     # Fallback : réponse pré-validée du golden dataset
     duration_ms = int((time.monotonic() - start) * 1000)
-    return MOCK_RESPONSES.get(complexity, "Analyse non disponible."), duration_ms
+    return MOCK_RESPONSES.get(complexity, "Analyse non disponible."), duration_ms, "golden_dataset", MODEL
 
 
 # ── Tâche principale ─────────────────────────────────────────────────────────
@@ -315,13 +340,13 @@ def analyze_class(complexity: str, **kwargs) -> dict:
     ) as span:
         # Attributs LLM (OpenInference semantic conventions)
         span.set_attribute("openinference.span.kind",         "LLM")
-        span.set_attribute("llm.model_name",                  MODEL)
-        span.set_attribute("llm.provider",                    "ollama")
         span.set_attribute("llm.input_messages.0.message.content",  prompt)
         span.set_attribute("java.class.name",                 cls["name"])
         span.set_attribute("java.class.complexity",           cls["complexity"])
 
-        output, duration_ms = _call_ollama(prompt, complexity=complexity)
+        output, duration_ms, provider, model_name = _call_llm(prompt, complexity=complexity)
+        span.set_attribute("llm.model_name", model_name)
+        span.set_attribute("llm.provider",   provider)
         score = _quality_score(output, cls["expected_keywords"])
 
         threshold = 0.60 if complexity == "simple" else 0.40
