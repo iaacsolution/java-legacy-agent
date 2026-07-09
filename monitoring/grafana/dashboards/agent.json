@@ -107,6 +107,38 @@
         { "expr": "agent_step_max_ms",  "legendFormat": "Max" },
         { "expr": "agent_step_avg_ms",  "legendFormat": "Moy" }
       ]
+    },
+    {
+      "id": 9,
+      "title": "vLLM — requêtes (running/waiting/swapped)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 18, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "vllm:num_requests_running",  "legendFormat": "Running" },
+        { "expr": "vllm:num_requests_waiting",  "legendFormat": "Waiting" },
+        { "expr": "vllm:num_requests_swapped",  "legendFormat": "Swapped" }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "vLLM — utilisation cache GPU (%)",
+      "type": "gauge",
+      "gridPos": { "x": 12, "y": 18, "w": 12, "h": 6 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "thresholds": {
+          "steps": [
+            { "color": "green",  "value": 0  },
+            { "color": "orange", "value": 70 },
+            { "color": "red",    "value": 90 }
+          ]
+        },
+        "min": 0, "max": 100
+      },
+      "targets": [{
+        "expr": "vllm:gpu_cache_usage_perc * 100",
+        "legendFormat": "KV-cache"
+      }]
     }
   ]
 }

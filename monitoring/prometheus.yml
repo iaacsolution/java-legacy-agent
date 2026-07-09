@@ -6,3 +6,8 @@ scrape_configs:
     honor_labels: true
     static_configs:
       - targets: ['pushgateway:9091']
+
+  # vLLM expose ses propres métriques Prometheus sur /metrics (batching, cache GPU, latence)
+  - job_name: 'vllm'
+    static_configs:
+      - targets: ['vllm:8000']
