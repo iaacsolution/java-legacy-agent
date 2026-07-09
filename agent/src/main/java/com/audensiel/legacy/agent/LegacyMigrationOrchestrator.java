@@ -40,6 +40,7 @@ public class LegacyMigrationOrchestrator {
     private final MigrationPlannerAgent   migrationPlanner;
     private final OutputValidator         validator;
     private final MetricsPusher           metricsPusher;
+    private final String                  llmBackend;
 
     public LegacyMigrationOrchestrator(String ollamaBaseUrl, String pushgatewayUrl) {
         this.scanner            = new FileScannerAgent();
@@ -48,6 +49,7 @@ public class LegacyMigrationOrchestrator {
         this.migrationPlanner   = new MigrationPlannerAgent(ollamaBaseUrl);
         this.validator          = new OutputValidator();
         this.metricsPusher      = new MetricsPusher(pushgatewayUrl);
+        this.llmBackend         = LlmModelFactory.describeActiveBackend(ollamaBaseUrl);
     }
 
     public void run(Path projectPath, Path outputDir) throws IOException {
@@ -59,6 +61,7 @@ public class LegacyMigrationOrchestrator {
         // Span racine — couvre tout le batch (métrique 2 : durée totale du lot)
         Span batchSpan = tracer.spanBuilder("batch")
             .setAttribute("project.name", projectName)
+            .setAttribute("llm.backend", llmBackend)
             .startSpan();
         Context batchCtx = Context.current().with(batchSpan);
 
