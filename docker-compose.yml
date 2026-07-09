@@ -95,16 +95,21 @@ services:
     restart: unless-stopped
 
   # ── Open WebUI — interface chat avec les modèles ──────
+  # Pointe sur vLLM (OpenAI-compatible) par défaut, comme LlmModelFactory.
+  # Pour revenir sur Ollama : réactiver le service ci-dessus, remplacer
+  # OPENAI_API_BASE_URLS par OLLAMA_BASE_URL=http://ollama:11434 et
+  # ajouter "ollama" à depends_on.
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     ports:
       - "3002:8080"
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENAI_API_BASE_URLS=http://vllm:8000/v1
+      - OPENAI_API_KEYS=EMPTY
     volumes:
       - webui_data:/app/backend/data
     depends_on:
-      - ollama
+      - vllm
     restart: unless-stopped
 
   # ── Arize Phoenix — traçabilité et observabilité LLM ──

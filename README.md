@@ -10,6 +10,8 @@ Automated analysis and documentation of Java legacy codebases using AST parsing 
 
 Scans Java legacy code via AST analysis (JavaParser), generates technical documentation and migration plans using a local LLM — no cloud dependency, fully on-premise.
 
+LLM backend priority (`LlmModelFactory`): **vLLM local GPU** (continuous batching, real parallelism, sovereign) → Anthropic Claude Haiku (cloud fallback) → Ollama CPU (fallback, serializes requests — set `AGENT_WORKERS=1`).
+
 ```
 Java codebase
     │
@@ -44,7 +46,7 @@ MetricsPusher          → Prometheus metrics
 | Layer | Technology |
 |-------|------------|
 | AST parsing | JavaParser (Java/Maven) |
-| LLM inference | Qwen (local via Ollama) |
+| LLM inference | Qwen2.5-Coder-7B via vLLM (GPU, continuous batching), Claude Haiku or Ollama as fallback |
 | Orchestration | Python agents |
 | Observability | Prometheus · Grafana |
 | Tracing | Phoenix OTEL |
@@ -76,11 +78,14 @@ mvn compile exec:java -Dexec.mainClass="com.audensiel.legacy.agent.Main" \
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| Agent API | 8083 | REST API for analysis requests |
-| Ollama (Qwen) | 11434 | Local LLM inference |
+| vLLM (Qwen, GPU) | 8000 | Local LLM inference — OpenAI-compatible, continuous batching |
+| Open WebUI | 3002 | Chat interface (points at vLLM) |
 | Prometheus | 9093 | Metrics scraping |
-| Grafana | 3002 | Dashboards |
+| Grafana | 3003 | Dashboards |
 | Phoenix OTEL | 6006 | LLM traces |
+| Airflow | 8083 | Workflow orchestration |
+
+Requires `nvidia-container-toolkit` + a GPU with ≥8 GB VRAM. No GPU available? Comment out the `vllm` service, uncomment `ollama` in `docker-compose.yml`, and set `AGENT_WORKERS=1` (Ollama serializes requests).
 
 ---
 

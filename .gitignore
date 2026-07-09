@@ -1,2 +1,4 @@
-.callgraph-cache.json  
+.callgraph-cache.json
 impact-roi.csv
+agent/target/
+agent/dependency-reduced-pom.xml
