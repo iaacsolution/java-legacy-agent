@@ -65,7 +65,7 @@ public class Main {
         PipelineTracer.init(otlpEndpoint);
 
         System.out.println("🚀 Java Legacy Migration Agent");
-        System.out.println("📡 Ollama URL: " + ollamaUrl);
+        System.out.println("🧠 LLM backend: " + LlmModelFactory.describeActiveBackend(ollamaUrl));
         System.out.println("📊 OTLP endpoint: " + otlpEndpoint);
         System.out.println("─".repeat(60));
 

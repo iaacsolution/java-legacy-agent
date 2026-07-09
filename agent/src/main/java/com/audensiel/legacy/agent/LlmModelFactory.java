@@ -16,6 +16,20 @@ import java.time.Duration;
  */
 public class LlmModelFactory {
 
+    /** Résumé une ligne du backend actif, pour la bannière de démarrage (Main). */
+    public static String describeActiveBackend(String ollamaBaseUrl) {
+        String vllmUrl = System.getenv("VLLM_BASE_URL");
+        String apiKey  = System.getenv("ANTHROPIC_API_KEY");
+
+        if (vllmUrl != null && !vllmUrl.isBlank()) {
+            return "vLLM local GPU — " + vllmUrl + " (continuous batching, souverain)";
+        }
+        if (apiKey != null && !apiKey.isBlank()) {
+            return "Anthropic Claude Haiku (cloud)";
+        }
+        return "Ollama local CPU — " + ollamaBaseUrl + " (sérialise, AGENT_WORKERS=1 conseillé)";
+    }
+
     public static ChatLanguageModel create(String ollamaBaseUrl, double temperature, Duration timeout) {
         String vllmUrl  = System.getenv("VLLM_BASE_URL");
         String apiKey   = System.getenv("ANTHROPIC_API_KEY");
