@@ -1,6 +1,6 @@
 # Plan de sécurisation — SPIFFE/SPIRE + OWASP
 
-Statut : recon fait le 2026-07-09, plan rédigé le 2026-07-10. **Étape 1 (secrets) et étape 2 (segmentation réseau) implémentées et testées le 2026-07-10.**
+Statut : recon fait le 2026-07-09, plan rédigé le 2026-07-10. **Étapes 1 à 4 (secrets, segmentation réseau, casser l'exfiltration/injection, séparation analyzer/reporter) implémentées le 2026-07-10.**
 
 Contexte : préparation d'un entretien technique (2h, dans ~1 semaine ou plus) où il faut présenter un stack et un produit crédibles niveau production — chaque étape doit rester dans un état qui fonctionne et se raconte bien, pas de travail à moitié fait.
 
@@ -76,11 +76,16 @@ Vérifié dans le code : `LlmModelFactory.create()` (agent/src/.../LlmModelFacto
 - **Exfiltration cassée** : `LlmModelFactory` n'active plus Anthropic sur la seule présence de `ANTHROPIC_API_KEY`. Il faut désormais aussi `ALLOW_CLOUD_CODE_ANALYSIS=true` (nouveau flag, défaut `false`). Sans ce flag, une clé Anthropic présente est **ignorée** et le pipeline bascule sur Ollama CPU on-prem plutôt que de faire fuiter le code silencieusement. Le flag reste utile pour la démo HF Space (code non sensible, pas de GPU) — mais ne doit jamais être activé sur un vrai déploiement client. Testé : 3 scénarios (clé seule → Ollama, clé+flag → Anthropic, rien → Ollama) tous corrects.
 - **Séparation instruction/données renforcée** : voir fenêtre 3 ci-dessus.
 
-**Reste à faire — séparation des privilèges sur le graphe (le vrai fix, plus lourd)** : scinder `java-agent` en deux process/conteneurs distincts :
-- un **analyzer** (FileScanner + AstParser + `CodeAnalyzer.analyzeCode`) sans aucune route réseau vers l'extérieur, uniquement vers `vllm` (tier `compute`) — pas de `ANTHROPIC_API_KEY` dans son environnement, pas seulement "non utilisée" mais absente ;
-- un **reporter** (synthèse DAT + plan de migration + écriture du rapport + push métriques) qui ne voit jamais le code source brut, seulement les specs déjà produites par l'analyzer.
+**[Fait le 2026-07-10] Séparation des privilèges sur le graphe** : `LegacyMigrationOrchestrator` scindé en deux phases, déployables comme deux conteneurs distincts :
 
-Pas fait à ce stade — c'est un refactor Java réel (scinder le process, définir une interface entre les deux), pas juste une modification de `docker-compose.yml`. Actuellement la segmentation réseau de la fenêtre 2 est au niveau conteneur, pas au niveau agent — elle ne sépare rien à l'intérieur de `java-agent` tant qu'il reste un seul process.
+- **`java-analyzer`** (`Main.java` mode `analyze`) : `FileScannerAgent` + `AstParserAgent` + `JavaDocumentationAgent.CodeAnalyzer` — lit le code source brut, jamais `ANTHROPIC_API_KEY` ni `ALLOW_CLOUD_CODE_ANALYSIS` dans son environnement (absents de `docker-compose.yml`, pas juste vides). Écrit un `HandoffBundle` (specs + carte de dépendances, jamais le code source) sur un volume Docker partagé.
+- **`java-reporter`** (`Main.java` mode `report`) : lit uniquement le `HandoffBundle` sur disque (`HandoffBundle.read`), ne charge jamais les fichiers `.java` d'origine. Seul ce service peut légitimement porter `ANTHROPIC_API_KEY` (gouverné par `ALLOW_CLOUD_CODE_ANALYSIS`, défaut `false`) puisqu'il ne traite plus que des specs déjà dérivées.
+
+Le passage par disque (nouvelle classe `HandoffBundle`) force la séparation structurellement : le reporter ne peut physiquement accéder qu'à ce que l'analyzer a choisi d'écrire (`specs.md`, `dependencies.md`, `manifest.txt`) — il n'a ni le chemin du projet source, ni un accès réseau vers lui. `LegacyMigrationOrchestrator.run()` (mode monolithique, toujours dispo pour dev/démo locale) enchaîne les deux phases dans le même process via un handoff temporaire — même frontière de code, pas un chemin différent maintenu en parallèle.
+
+`docker-compose.yml` : le service `java-agent` unique est remplacé par `java-analyzer` + `java-reporter`, reliés par un volume nommé `handoff_data`. Invocation : `docker compose run --rm java-analyzer analyze /projet /handoff` puis `docker compose run --rm java-reporter report /handoff /projet /sortie`.
+
+**Limite honnête** : la séparation ici est une séparation de *credentials et de code exécuté* (l'analyzer n'a structurellement pas la clé Anthropic), pas encore une séparation *réseau* stricte au niveau egress — les deux conteneurs restent sur les mêmes tiers Docker (`compute`+`observability`) sans firewall de sortie (cf. fenêtre 2, item non fait). Un vrai blocage réseau de l'egress Internet pour `java-analyzer` spécifiquement reste à faire via un proxy sortant.
 
 ---
 
@@ -88,22 +93,22 @@ Pas fait à ce stade — c'est un refactor Java réel (scinder le process, défi
 
 LangChain4j est épinglé en version **0.36.2** (via `openai4j` 0.23.0) — **impossible d'injecter un client mTLS personnalisé côté Java** avec cette version (vérifié au bytecode du builder). Conséquence : le mTLS agent Java → vLLM ne peut pas se faire dans le code Java lui-même. Deux options :
 - upgrader LangChain4j (risque de régressions à évaluer),
-- passer par un sidecar (SPIRE Agent + Envoy) qui termine le mTLS devant `java-agent`, transparent pour le code Java.
+- passer par un sidecar (SPIRE Agent + Envoy) qui termine le mTLS devant chaque conteneur Java, transparent pour le code.
 
 ## Architecture SPIRE retenue
 
 - SPIRE Server (1 container) + SPIRE Agent (attestation via sélecteurs Docker/cgroup).
 - Côté vLLM : mTLS natif possible (à confirmer) + `spiffe-helper` pour la rotation des certs — pas besoin de sidecar.
-- Côté `java-agent` : sidecar Envoy consommant les SVID via le Workload API (socket Unix exposé par SPIRE Agent), puisque le client Java ne peut pas le faire nativement.
+- Côté `java-analyzer` / `java-reporter` : sidecar Envoy consommant les SVID via le Workload API (socket Unix exposé par SPIRE Agent), puisque le client Java ne peut pas le faire nativement. Le split analyzer/reporter donne aussi deux identités SPIFFE distinctes (SVID différent par service) — cohérent avec la séparation de privilèges déjà faite au niveau credentials.
 
 ## Ordre d'implémentation (risque croissant, du plus sûr au plus impactant)
 
 1. ✅ Sortir les secrets en dur + hook de scan — fait et testé le 2026-07-10.
 2. ✅ Segmentation réseau `docker-compose.yml` (`networks:` par tier) — fait et testé le 2026-07-10 ; egress-filtering (proxy/NetworkPolicy) reste ouvert.
 3. ✅ Casser l'exfiltration (gate `ALLOW_CLOUD_CODE_ANALYSIS`) + séparation instruction/données + scan anti-injection — fait et testé le 2026-07-10.
-4. Séparation des privilèges sur le graphe (scinder `java-agent` en analyzer/reporter) — le vrai fix architectural, pas encore fait.
+4. ✅ Séparation des privilèges sur le graphe (`java-agent` scindé en `java-analyzer`/`java-reporter`, HandoffBundle sur disque) — fait le 2026-07-10 ; egress-filtering réseau spécifique à l'analyzer reste ouvert (limite honnête ci-dessus).
 5. Déployer SPIRE Server + Agent seuls, sans encore rien brancher dessus — risque faible, ajout pur.
 6. Piloter avec un seul service (vLLM) en mTLS natif — risque moyen.
-7. Sidecar Envoy pour `java-agent` — risque plus élevé, touche le chemin critique du pipeline.
+7. Sidecar Envoy pour `java-analyzer` / `java-reporter` — risque plus élevé, touche le chemin critique du pipeline.
 
-**Point encore ouvert** : confirmer les flags TLS natifs de vLLM sur la version déployée avant de figer l'étape 4.
+**Point encore ouvert** : confirmer les flags TLS natifs de vLLM sur la version déployée avant de figer l'étape 6.

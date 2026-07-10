@@ -42,30 +42,50 @@ services:
   #     - ollama_data:/root/.ollama
   #   restart: unless-stopped
 
-  # ── Agent Java LangChain4j ───────────────────────────
-  java-agent:
+  # ── java-analyzer — ingère le code source brut du client ──────────
+  # Aucune route vers Anthropic : ni ANTHROPIC_API_KEY ni
+  # ALLOW_CLOUD_CODE_ANALYSIS ne sont injectés dans cet environnement,
+  # même si les deux sont renseignés dans .env pour java-reporter.
+  # Voir SECURITY_PLAN.md, "casser le cumul de la trifecta sur le graphe".
+  # Usage : docker compose run --rm java-analyzer analyze /projet /handoff
+  java-analyzer:
     build: ./agent
     environment:
-      # vLLM (GPU local, parallélisme réel) — priorité 1
       - VLLM_BASE_URL=http://vllm:8000
-      # Anthropic cloud — priorité 2 si pas de GPU, MAIS seulement si
-      # ALLOW_CLOUD_CODE_ANALYSIS=true (voir LlmModelFactory.java) : le code
-      # source du client ne doit pas sortir du périmètre par défaut.
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - ALLOW_CLOUD_CODE_ANALYSIS=${ALLOW_CLOUD_CODE_ANALYSIS:-false}
-      # Ollama CPU — priorité 3 (fallback, mettre AGENT_WORKERS=1)
       - OLLAMA_BASE_URL=http://ollama:11434
       - AGENT_WORKERS=4
       - PUSHGATEWAY_URL=http://pushgateway:9091
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:4317
     volumes:
       - ./logs:/app/logs
+      - handoff_data:/app/handoff
     depends_on:
       - vllm
       - pushgateway
     restart: "no"
-    # sur les deux tiers : parle à vllm/open-webui (compute) ET pousse ses
-    # métriques/traces vers pushgateway+phoenix (observability)
+    networks: [compute, observability]
+
+  # ── java-reporter — ne lit jamais le code source brut ──────────────
+  # Consomme uniquement le HandoffBundle écrit par java-analyzer. Seul ce
+  # service peut porter ANTHROPIC_API_KEY (gouverné par ALLOW_CLOUD_CODE_ANALYSIS,
+  # défaut false) car il ne traite plus que des specs déjà dérivées du code.
+  # Usage : docker compose run --rm java-reporter report /handoff /projet /sortie
+  java-reporter:
+    build: ./agent
+    environment:
+      - VLLM_BASE_URL=http://vllm:8000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ALLOW_CLOUD_CODE_ANALYSIS=${ALLOW_CLOUD_CODE_ANALYSIS:-false}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - PUSHGATEWAY_URL=http://pushgateway:9091
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:4317
+    volumes:
+      - ./logs:/app/logs
+      - handoff_data:/app/handoff
+    depends_on:
+      - vllm
+      - pushgateway
+    restart: "no"
     networks: [compute, observability]
 
   # ── Prometheus Pushgateway — métriques batch agent ───
@@ -168,8 +188,8 @@ networks:
   # chaque UI doit rester accessible en localhost. Le vrai blocage d'egress
   # (LLM01/OWASP, seuls vllm+java-agent doivent sortir vers Internet)
   # nécessite un proxy de sortie ou une NetworkPolicy k8s, pas encore fait.
-  compute:      # vllm, java-agent, open-webui — service LLM
-  observability: # pushgateway, prometheus, grafana, phoenix — métriques/traces
+  compute:      # vllm, java-analyzer, java-reporter, open-webui — service LLM
+  observability: # pushgateway, prometheus, grafana, phoenix, java-analyzer, java-reporter
   orchestration: # airflow — isolé, ne parle à aucun autre service actuellement
 
 volumes:
@@ -179,3 +199,6 @@ volumes:
   grafana_data:
   phoenix_data:
   airflow_data:
+  # Frontière de confiance entre java-analyzer et java-reporter : seuls les
+  # specs déjà produites transitent ici, jamais les fichiers .java d'origine.
+  handoff_data:

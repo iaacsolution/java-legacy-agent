@@ -4,13 +4,20 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Point d'entrée — deux modes :
+ * Point d'entrée — plusieurs modes :
  *
- *   Mode démo   : java -jar app.jar
- *                 → analyse un exemple EJB intégré
+ *   Mode démo    : java -jar app.jar
+ *                  → analyse un exemple EJB intégré
  *
- *   Mode projet : java -jar app.jar /chemin/vers/projet [/dossier/sortie]
- *                 → pipeline complet sur un vrai projet Java Legacy
+ *   Mode projet  : java -jar app.jar /chemin/vers/projet [/dossier/sortie]
+ *                  → pipeline complet (analyze + report) dans le même process
+ *
+ *   Mode analyze : java -jar app.jar analyze /chemin/vers/projet /dossier/handoff
+ *                  → ingère le code brut, écrit un HandoffBundle. À déployer sans
+ *                    ANTHROPIC_API_KEY (voir docker-compose.yml, java-analyzer).
+ *
+ *   Mode report  : java -jar app.jar report /dossier/handoff /chemin/vers/projet /dossier/sortie
+ *                  → lit le HandoffBundle (jamais le code source brut), génère le rapport.
  */
 public class Main {
 
@@ -131,6 +138,28 @@ public class Main {
             System.out.println("─".repeat(60));
             System.out.println("✅ Livrable généré — prêt pour l'équipe architecture");
             System.out.println("─".repeat(60));
+
+        } else if (args.length >= 3 && args[0].equals("analyze")) {
+            // ── Mode ANALYZER — ingère le code brut, jamais de sortie cloud ──
+            // Usage : analyze <projet> <dossier_handoff>
+            // À déployer sans ANTHROPIC_API_KEY (voir docker-compose.yml, java-analyzer).
+            Path projectPath = Paths.get(args[1]);
+            Path handoffDir  = Paths.get(args[2]);
+
+            LegacyMigrationOrchestrator orchestrator = new LegacyMigrationOrchestrator(ollamaUrl, pushgatewayUrl);
+            orchestrator.runAnalyzePhase(projectPath, handoffDir);
+            PipelineTracer.shutdown();
+
+        } else if (args.length >= 4 && args[0].equals("report")) {
+            // ── Mode REPORTER — ne lit jamais le code source brut ───
+            // Usage : report <dossier_handoff> <projet> <dossier_sortie>
+            Path handoffDir  = Paths.get(args[1]);
+            Path projectPath = Paths.get(args[2]);
+            Path outputDir   = Paths.get(args[3]);
+
+            LegacyMigrationOrchestrator orchestrator = new LegacyMigrationOrchestrator(ollamaUrl, pushgatewayUrl);
+            orchestrator.runReportPhase(handoffDir, projectPath, outputDir);
+            PipelineTracer.shutdown();
 
         } else if (args.length >= 1) {
             // ── Mode projet : pipeline complet sur un vrai dossier ──
