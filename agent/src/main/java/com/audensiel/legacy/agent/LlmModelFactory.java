@@ -10,11 +10,21 @@ import java.time.Duration;
 /**
  * Sélectionne le backend LLM selon l'environnement, par ordre de priorité :
  *
- *   1. VLLM_BASE_URL    → vLLM local GPU   (continuous batching, parallélisme réel, souverain)
- *   2. ANTHROPIC_API_KEY → Claude Haiku    (cloud, rapide, données sortent on-premise)
- *   3. sinon             → Ollama local CPU (sérialise les requêtes → AGENT_WORKERS=1 conseillé)
+ *   1. VLLM_BASE_URL     → vLLM local GPU   (continuous batching, parallélisme réel, souverain)
+ *   2. ANTHROPIC_API_KEY → Claude Haiku     (cloud) — UNIQUEMENT si ALLOW_CLOUD_CODE_ANALYSIS=true
+ *   3. sinon              → Ollama local CPU (sérialise les requêtes → AGENT_WORKERS=1 conseillé)
+ *
+ * create() alimente tous les agents du pipeline : celui qui analyse le code source brut du
+ * client (JavaDocumentationAgent) ET ceux qui traitent les specs qui en dérivent (DAT, plan de
+ * migration). Une clé Anthropic présente ne suffit plus, à elle seule, à faire sortir du code
+ * client vers le cloud — il faut le flag explicite ALLOW_CLOUD_CODE_ANALYSIS en plus. Par défaut
+ * (flag absent), tout reste on-prem : dégradation vers Ollama CPU plutôt que fuite silencieuse.
  */
 public class LlmModelFactory {
+
+    private static boolean cloudAllowed() {
+        return Boolean.parseBoolean(System.getenv().getOrDefault("ALLOW_CLOUD_CODE_ANALYSIS", "false"));
+    }
 
     /** Résumé une ligne du backend actif, pour la bannière de démarrage (Main). */
     public static String describeActiveBackend(String ollamaBaseUrl) {
@@ -24,8 +34,11 @@ public class LlmModelFactory {
         if (vllmUrl != null && !vllmUrl.isBlank()) {
             return "vLLM local GPU — " + vllmUrl + " (continuous batching, souverain)";
         }
+        if (apiKey != null && !apiKey.isBlank() && cloudAllowed()) {
+            return "Anthropic Claude Haiku (cloud, ALLOW_CLOUD_CODE_ANALYSIS=true — code envoyé hors périmètre)";
+        }
         if (apiKey != null && !apiKey.isBlank()) {
-            return "Anthropic Claude Haiku (cloud)";
+            return "Ollama local CPU — clé Anthropic ignorée (ALLOW_CLOUD_CODE_ANALYSIS non activé)";
         }
         return "Ollama local CPU — " + ollamaBaseUrl + " (sérialise, AGENT_WORKERS=1 conseillé)";
     }
@@ -47,13 +60,17 @@ public class LlmModelFactory {
         }
 
         if (apiKey != null && !apiKey.isBlank()) {
-            System.out.println("  [LLM] Anthropic Claude Haiku (cloud)");
-            return AnthropicChatModel.builder()
-                    .apiKey(apiKey)
-                    .modelName("claude-haiku-4-5-20251001")
-                    .temperature(temperature)
-                    .maxTokens(2048)
-                    .build();
+            if (cloudAllowed()) {
+                System.out.println("  [LLM] Anthropic Claude Haiku (cloud) — ALLOW_CLOUD_CODE_ANALYSIS=true, code envoyé hors périmètre");
+                return AnthropicChatModel.builder()
+                        .apiKey(apiKey)
+                        .modelName("claude-haiku-4-5-20251001")
+                        .temperature(temperature)
+                        .maxTokens(2048)
+                        .build();
+            }
+            System.out.println("  [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — "
+                    + "bascule sur Ollama local (le code ne sort pas du périmètre)");
         }
 
         System.out.println("  [LLM] Ollama local CPU (sérialise — AGENT_WORKERS=1 conseillé)");

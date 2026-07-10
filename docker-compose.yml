@@ -48,8 +48,11 @@ services:
     environment:
       # vLLM (GPU local, parallélisme réel) — priorité 1
       - VLLM_BASE_URL=http://vllm:8000
-      # Anthropic cloud — priorité 2 si pas de GPU
+      # Anthropic cloud — priorité 2 si pas de GPU, MAIS seulement si
+      # ALLOW_CLOUD_CODE_ANALYSIS=true (voir LlmModelFactory.java) : le code
+      # source du client ne doit pas sortir du périmètre par défaut.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ALLOW_CLOUD_CODE_ANALYSIS=${ALLOW_CLOUD_CODE_ANALYSIS:-false}
       # Ollama CPU — priorité 3 (fallback, mettre AGENT_WORKERS=1)
       - OLLAMA_BASE_URL=http://ollama:11434
       - AGENT_WORKERS=4

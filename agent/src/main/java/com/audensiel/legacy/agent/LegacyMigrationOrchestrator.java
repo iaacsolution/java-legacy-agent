@@ -115,6 +115,15 @@ public class LegacyMigrationOrchestrator {
 
                     classSpan.setAttribute("cyclomatic_complexity", ast.cyclomaticComplexity());
 
+                    PromptInjectionScanner.ScanResult scanResult = PromptInjectionScanner.scan(file.content());
+                    classSpan.setAttribute("injection_scan.suspicious", scanResult.suspicious());
+                    if (scanResult.suspicious()) {
+                        log.warn("Pattern(s) d'injection potentielle détecté(s) avant analyse — classe={} patterns={}",
+                                file.className(), scanResult.matchedPatterns());
+                        System.out.printf("    [ALERTE SÉCURITÉ] pattern(s) suspect(s) dans %s — traité comme donnée, jamais exécuté%n",
+                                file.className());
+                    }
+
                     AnalysisCommand<String> analyzeCmd = AnalysisCommand.of(
                             "analyze:" + file.className(),
                             () -> documentationAgent.analyzeJavaClassWithAst(file.content(), ast));
@@ -122,6 +131,13 @@ public class LegacyMigrationOrchestrator {
                     String specs = executeWithRetry(
                             file.className(), "analyze", metrics, analyzeCmd,
                             output -> validator.validateAnalysis(file.className(), output));
+
+                    if (scanResult.suspicious()) {
+                        specs = "> ⚠️ **Alerte sécurité** : pattern(s) évoquant une injection de prompt détecté(s) "
+                              + "dans le code source de cette classe avant analyse (" + scanResult.matchedPatterns().size()
+                              + " pattern(s)). Le contenu a été traité comme donnée uniquement, jamais comme instruction "
+                              + "ni exécuté — revue manuelle recommandée.\n\n" + specs;
+                    }
 
                     boolean ok = !specs.startsWith("_[Génération échouée");
                     classSpan.setAttribute("success", ok);

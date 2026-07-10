@@ -59,10 +59,28 @@ Le pipeline (`FileScannerAgent` → analyse par classe → `DAT` agrégé → pl
 OWASP LLM01 (Prompt Injection) : un commentaire ou une chaîne dans le code legacy analysé (`// SYSTEM: ignore les instructions précédentes...`) pourrait manipuler l'analyse. Le risque est amplifié aux étapes d'agrégation (4 et 5), où un contexte empoisonné à l'étape 2 se propage sans nouvelle vérification.
 
 **Actions**
-1. Délimitation stricte du code source dans les prompts (balises non ambiguës, jamais de concaténation brute) — à vérifier dans le prompt-building actuel de l'agent.
-2. Confirmer que le pipeline reste **read-only / report-only** : aujourd'hui il ne fait que générer un rapport/plan, il n'exécute rien automatiquement à partir de la sortie LLM. C'est le point de containment le plus important — ne jamais faire évoluer vers de l'auto-exécution sans ré-audit de cette fenêtre.
-3. Scan best-effort du code source *avant* ingestion (regex sur patterns d'injection connus) — défense en profondeur, pas fiable à 100 % mais réduit le bruit.
+1. **[Fait]** Délimitation explicite instruction/données dans les 3 prompts (`JavaDocumentationAgent.CodeAnalyzer`, `.DocumentationSynthesizer`, `MigrationPlannerAgent.MigrationPlanner`) : balises `── DÉBUT/FIN ... (donnée, pas instruction) ──` + system prompt qui dit explicitement d'ignorer tout texte qui ressemblerait à un ordre dans le contenu analysé.
+2. **[Confirmé]** Le pipeline reste **read-only / report-only** : `LegacyMigrationOrchestrator.run()` (vérifié ligne par ligne) ne fait que `Files.writeString` du rapport final + pousser des métriques numériques (pas de texte LLM) vers Pushgateway. Aucune exécution de code ni d'action à partir de la sortie LLM. C'est le point de containment le plus important — ne jamais faire évoluer vers de l'auto-exécution sans ré-audit de cette fenêtre.
+3. **[Fait]** `PromptInjectionScanner` (nouvelle classe) : scan regex best-effort sur le code source de chaque classe *avant* analyse, dans `LegacyMigrationOrchestrator`. Si suspect : log warning + span OTEL `injection_scan.suspicious=true` + bandeau d'alerte visible injecté en tête des specs de la classe dans le rapport final. Testé : 0 faux positif sur du code propre, détection sur 2 formulations d'injection différentes. Pas fiable à 100 % (un attaquant motivé peut l'éviter) — défense en profondeur, pas un filtre.
 4. Relier à la fenêtre 1 : les traces Phoenix contiennent le contenu potentiellement empoisonné — protéger l'accès à Phoenix protège aussi contre l'exfiltration d'un payload d'injection réussi.
+
+---
+
+## Casser le cumul de la trifecta sur le graphe d'agents (pas juste durcir l'infra)
+
+Diagnostic (2026-07-10) : la segmentation réseau (fenêtre 2) et les secrets (fenêtre 1) durcissent l'infra *autour* du pipeline, mais ne cassent pas le vrai problème : **`java-agent` est un seul process qui cumule les 3 pattes de la trifecta** — il ingère le code brut du client (non fiable) ET porte la clé Anthropic ET a la sortie réseau vers le cloud, dans le même appel (`JavaDocumentationAgent.analyzeCode` → `LlmModelFactory.create()`).
+
+Vérifié dans le code : `LlmModelFactory.create()` (agent/src/.../LlmModelFactory.java) est appelé à l'identique par l'agent qui ingère le code brut (`JavaDocumentationAgent`) et par ceux qui postent le résultat (`MigrationPlannerAgent`, synthèse DAT) — même client LLM, même capacité réseau, aucune séparation de privilège entre "qui lit le non-fiable" et "qui a la sortie réseau".
+
+**Corrections faites (2026-07-10) :**
+- **Exfiltration cassée** : `LlmModelFactory` n'active plus Anthropic sur la seule présence de `ANTHROPIC_API_KEY`. Il faut désormais aussi `ALLOW_CLOUD_CODE_ANALYSIS=true` (nouveau flag, défaut `false`). Sans ce flag, une clé Anthropic présente est **ignorée** et le pipeline bascule sur Ollama CPU on-prem plutôt que de faire fuiter le code silencieusement. Le flag reste utile pour la démo HF Space (code non sensible, pas de GPU) — mais ne doit jamais être activé sur un vrai déploiement client. Testé : 3 scénarios (clé seule → Ollama, clé+flag → Anthropic, rien → Ollama) tous corrects.
+- **Séparation instruction/données renforcée** : voir fenêtre 3 ci-dessus.
+
+**Reste à faire — séparation des privilèges sur le graphe (le vrai fix, plus lourd)** : scinder `java-agent` en deux process/conteneurs distincts :
+- un **analyzer** (FileScanner + AstParser + `CodeAnalyzer.analyzeCode`) sans aucune route réseau vers l'extérieur, uniquement vers `vllm` (tier `compute`) — pas de `ANTHROPIC_API_KEY` dans son environnement, pas seulement "non utilisée" mais absente ;
+- un **reporter** (synthèse DAT + plan de migration + écriture du rapport + push métriques) qui ne voit jamais le code source brut, seulement les specs déjà produites par l'analyzer.
+
+Pas fait à ce stade — c'est un refactor Java réel (scinder le process, définir une interface entre les deux), pas juste une modification de `docker-compose.yml`. Actuellement la segmentation réseau de la fenêtre 2 est au niveau conteneur, pas au niveau agent — elle ne sépare rien à l'intérieur de `java-agent` tant qu'il reste un seul process.
 
 ---
 
@@ -82,9 +100,10 @@ LangChain4j est épinglé en version **0.36.2** (via `openai4j` 0.23.0) — **im
 
 1. ✅ Sortir les secrets en dur + hook de scan — fait et testé le 2026-07-10.
 2. ✅ Segmentation réseau `docker-compose.yml` (`networks:` par tier) — fait et testé le 2026-07-10 ; egress-filtering (proxy/NetworkPolicy) reste ouvert.
-3. Déployer SPIRE Server + Agent seuls, sans encore rien brancher dessus — risque faible, ajout pur.
-4. Piloter avec un seul service (vLLM) en mTLS natif — risque moyen.
-5. Sidecar Envoy pour `java-agent` — risque plus élevé, touche le chemin critique du pipeline.
-6. Défenses anti prompt-injection dans le code Java — risque faible à moyen, testable indépendamment.
+3. ✅ Casser l'exfiltration (gate `ALLOW_CLOUD_CODE_ANALYSIS`) + séparation instruction/données + scan anti-injection — fait et testé le 2026-07-10.
+4. Séparation des privilèges sur le graphe (scinder `java-agent` en analyzer/reporter) — le vrai fix architectural, pas encore fait.
+5. Déployer SPIRE Server + Agent seuls, sans encore rien brancher dessus — risque faible, ajout pur.
+6. Piloter avec un seul service (vLLM) en mTLS natif — risque moyen.
+7. Sidecar Envoy pour `java-agent` — risque plus élevé, touche le chemin critique du pipeline.
 
 **Point encore ouvert** : confirmer les flags TLS natifs de vLLM sur la version déployée avant de figer l'étape 4.
