@@ -28,6 +28,7 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
+    networks: [compute]
 
   # ── Ollama — fallback CPU (sérialise les requêtes LLM) ─
   # Activer si pas de GPU disponible. Mettre AGENT_WORKERS=1.
@@ -60,6 +61,9 @@ services:
       - vllm
       - pushgateway
     restart: "no"
+    # sur les deux tiers : parle à vllm/open-webui (compute) ET pousse ses
+    # métriques/traces vers pushgateway+phoenix (observability)
+    networks: [compute, observability]
 
   # ── Prometheus Pushgateway — métriques batch agent ───
   pushgateway:
@@ -67,6 +71,7 @@ services:
     ports:
       - "9092:9091"
     restart: unless-stopped
+    networks: [observability]
 
   # ── Prometheus — scrape du Pushgateway ───────────────
   prometheus:
@@ -76,6 +81,7 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
     restart: unless-stopped
+    networks: [observability]
 
   # ── Grafana — dashboards agent ────────────────────────
   grafana:
@@ -93,6 +99,7 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    networks: [observability]
 
   # ── Open WebUI — interface chat avec les modèles ──────
   # Pointe sur vLLM (OpenAI-compatible) par défaut, comme LlmModelFactory.
@@ -111,6 +118,7 @@ services:
     depends_on:
       - vllm
     restart: unless-stopped
+    networks: [compute]
 
   # ── Arize Phoenix — traçabilité et observabilité LLM ──
   phoenix:
@@ -123,6 +131,7 @@ services:
     volumes:
       - phoenix_data:/phoenix
     restart: unless-stopped
+    networks: [observability]
 
   # ── Apache Airflow — orchestration de workflows ────────
   airflow:
@@ -144,6 +153,21 @@ services:
       - airflow_data:/opt/airflow
       - ./airflow/dags:/opt/airflow/dags
     restart: unless-stopped
+    networks: [orchestration]
+
+networks:
+  # Segmentation par tier plutôt qu'un unique bridge plat où tout parle à
+  # tout sans auth. Chaque service ne rejoint que les réseaux dont il a
+  # réellement besoin (moindre privilège réseau, réduit le rayon d'un
+  # service compromis). Tentative initiale avec `internal: true` abandonnée :
+  # Docker Compose ne publie alors plus les ports côté host (vérifié
+  # empiriquement, cf. SECURITY_PLAN.md) — inutilisable pour une démo où
+  # chaque UI doit rester accessible en localhost. Le vrai blocage d'egress
+  # (LLM01/OWASP, seuls vllm+java-agent doivent sortir vers Internet)
+  # nécessite un proxy de sortie ou une NetworkPolicy k8s, pas encore fait.
+  compute:      # vllm, java-agent, open-webui — service LLM
+  observability: # pushgateway, prometheus, grafana, phoenix — métriques/traces
+  orchestration: # airflow — isolé, ne parle à aucun autre service actuellement
 
 volumes:
   vllm_cache:

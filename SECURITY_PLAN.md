@@ -1,6 +1,8 @@
 # Plan de sécurisation — SPIFFE/SPIRE + OWASP
 
-Statut : **plan, rien n'est encore implémenté**. Recon fait le 2026-07-09, plan rédigé le 2026-07-10.
+Statut : recon fait le 2026-07-09, plan rédigé le 2026-07-10. **Étape 1 (secrets) et étape 2 (segmentation réseau) implémentées et testées le 2026-07-10.**
+
+Contexte : préparation d'un entretien technique (2h, dans ~1 semaine ou plus) où il faut présenter un stack et un produit crédibles niveau production — chaque étape doit rester dans un état qui fonctionne et se raconte bien, pas de travail à moitié fait.
 
 ## Cadrage : les 3 fenêtres d'attaque (lethal trifecta)
 
@@ -25,8 +27,8 @@ Le risque n'est pas chaque fenêtre isolément, c'est leur combinaison : du code
 - `hooks/pre-commit` : aucun secret-scanning
 
 **Actions**
-1. Sortir tous les secrets en dur → fichier `.env` non versionné + template `.env.example`, ou Docker secrets pour les déploiements plus sérieux.
-2. Ajouter `gitleaks` (ou `detect-secrets`) au hook `pre-commit` existant, en plus du breaking-change detector déjà en place.
+1. **[Fait]** Sortir tous les secrets en dur → `docker-compose.yml` lit `${GF_ADMIN_PASSWORD:?...}` / `${AIRFLOW_ADMIN_PASSWORD:?...}` / `${AIRFLOW_SECRET_KEY:?...}` (fail-fast si absent), valeurs réelles dans `.env` (gitignored, 3 valeurs distinctes générées aléatoirement), template `.env.example` committable. L'ancien mot de passe reste dans l'historique git (repo public) — purge d'historique (BFG/filter-repo) volontairement non faite, en attente d'une décision explicite car destructive sur remote partagé.
+2. **[Fait]** Scan de secrets ajouté dans `hooks/pre-commit` — testé positif (bloque un secret réintroduit) et négatif (aucun faux positif sur un diff propre). `gitleaks` aussi ajouté à `.pre-commit-config.yaml`, mais **ce fichier était mort** : le hook réellement actif est le script brut dans `.git/hooks/pre-commit` (framework `pre-commit` pas installé) — c'est celui-là qui a été corrigé pour protéger vraiment.
 3. SPIFFE/SPIRE comme identité de workload : chaque service reçoit un SVID X.509 émis par SPIRE Server, attesté par SPIRE Agent via des sélecteurs Docker (label ou cgroup). Ça permet une autorisation par identité plutôt que par "qui connaît le secret partagé" — seul le workload `java-agent` est autorisé à porter la charge liée à `ANTHROPIC_API_KEY`.
 4. OWASP LLM06 (Sensitive Information Disclosure) : avant l'ingestion, scanner le code legacy analysé pour des patterns de secrets (creds JDBC en dur dans de vieux EJB, typique du legacy) afin d'éviter qu'ils remontent tels quels dans les traces Phoenix / dashboards Grafana.
 
@@ -39,9 +41,11 @@ Le risque n'est pas chaque fenêtre isolément, c'est leur combinaison : du code
 - Seul egress légitime vers Internet : `api.anthropic.com` (client Anthropic dans `java-agent`) et `huggingface.co` (pull de modèle vLLM, push/pull HF Space). Aucun autre service n'a de raison de sortir sur Internet.
 
 **Actions**
-1. Segmenter le réseau Docker en au moins deux réseaux : un réseau *interne* (vllm, pushgateway, prometheus, phoenix — zéro accès Internet) et un réseau *egress* pour `java-agent` uniquement.
-2. Ajouter un proxy sortant (Squid ou Envoy) qui n'autorise que `api.anthropic.com:443` en sortie de `java-agent`, tout le reste refusé par défaut. Grafana/Airflow n'ont structurellement aucun besoin de sortir sur Internet.
-3. SPIFFE n'est pas un filtre réseau — mais si on veut du zero-trust complet, l'agent peut s'authentifier auprès du proxy sortant avec son SVID plutôt qu'un secret statique.
+1. **[Fait]** Segmentation par tier au lieu du bridge plat unique : 3 réseaux Docker — `compute` (vllm, java-agent, open-webui), `observability` (pushgateway, prometheus, grafana, phoenix — java-agent y est aussi car il pousse métriques+traces), `orchestration` (airflow, isolé). Chaque service ne rejoint que les réseaux dont il a réellement besoin.
+   - **Tentative initiale abandonnée** : `internal: true` sur le réseau semblait la solution évidente pour bloquer tout egress Internet en plus de l'isolation est-ouest. Testé empiriquement (`docker compose up` + `docker compose ps`) : avec `internal: true`, Docker Compose ne publie plus les ports côté host (`3000/tcp` au lieu de `0.0.0.0:3003->3000/tcp`) — inutilisable pour une démo où chaque UI doit rester accessible en `localhost`. D'où le choix de réseaux bridge normaux segmentés par tier (isolation est-ouest réelle) plutôt qu'un blocage d'egress illusoire.
+   - **Validé par test** : `grafana` (tier observability) atteint `prometheus:9090` (même tier) ; `grafana` ne peut même pas résoudre `open-webui` (tier compute, DNS Docker ne résout que dans le même réseau) — isolation confirmée, pas juste déclarée.
+2. **[Pas fait]** Le vrai blocage d'egress Internet (seuls vllm + java-agent devraient sortir) nécessite un mécanisme que docker-compose seul ne fournit pas proprement : proxy sortant (Squid/Envoy) en allowlist devant `java-agent`, ou en production une NetworkPolicy Kubernetes. Ce n'est pas juste "docker-compose ne le permet pas" — la segmentation par tier réduit déjà le mouvement latéral, mais ne filtre pas les connexions sortantes vers Internet.
+3. SPIFFE n'est pas un filtre réseau — mais si on veut du zero-trust complet, l'agent peut s'authentifier auprès du futur proxy sortant avec son SVID plutôt qu'un secret statique.
 4. Vérifier les flags TLS natifs de `vllm/vllm-openai` (`--ssl-certfile` / `--ssl-keyfile` / `--ssl-ca-certs` / `--ssl-cert-reqs`, hérités d'uvicorn) — à confirmer sur la version déployée. Si présents, vLLM peut terminer du mTLS nativement côté serveur sans sidecar.
 
 ---
@@ -74,10 +78,10 @@ LangChain4j est épinglé en version **0.36.2** (via `openai4j` 0.23.0) — **im
 - Côté vLLM : mTLS natif possible (à confirmer) + `spiffe-helper` pour la rotation des certs — pas besoin de sidecar.
 - Côté `java-agent` : sidecar Envoy consommant les SVID via le Workload API (socket Unix exposé par SPIRE Agent), puisque le client Java ne peut pas le faire nativement.
 
-## Ordre d'implémentation proposé (risque croissant, du plus sûr au plus impactant)
+## Ordre d'implémentation (risque croissant, du plus sûr au plus impactant)
 
-1. Sortir les secrets en dur + hook gitleaks — faible risque, réversible.
-2. Segmentation réseau `docker-compose.yml` (`networks:`) — risque moyen, testable en local avant tout déploiement.
+1. ✅ Sortir les secrets en dur + hook de scan — fait et testé le 2026-07-10.
+2. ✅ Segmentation réseau `docker-compose.yml` (`networks:` par tier) — fait et testé le 2026-07-10 ; egress-filtering (proxy/NetworkPolicy) reste ouvert.
 3. Déployer SPIRE Server + Agent seuls, sans encore rien brancher dessus — risque faible, ajout pur.
 4. Piloter avec un seul service (vLLM) en mTLS natif — risque moyen.
 5. Sidecar Envoy pour `java-agent` — risque plus élevé, touche le chemin critique du pipeline.
