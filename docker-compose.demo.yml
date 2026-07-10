@@ -1,0 +1,22 @@
+# Override DÉMO UNIQUEMENT — réintroduit ANTHROPIC_API_KEY sur java-analyzer,
+# qui ne l'a JAMAIS par défaut (voir docker-compose.yml + SECURITY_PLAN.md,
+# section "casser le cumul de la trifecta sur le graphe d'agents").
+#
+# Pourquoi ce fichier existe : la phase d'analyse par classe est le vrai goulot
+# d'étranglement (9-14 min/classe sur Ollama CPU vs 13-17s/classe sur Claude
+# Haiku, mesuré). Pour une démo rapide sur du code non sensible (demo-project),
+# on accepte consciemment de réintroduire l'accès cloud sur l'analyzer — c'est
+# le tradeoff vitesse/sécurité assumé, pas un oubli.
+#
+# Ne JAMAIS combiner ce fichier avec du vrai code client. En production, ne
+# jamais l'utiliser : docker-compose.yml seul reste la config de référence.
+#
+# Usage :
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+#     run --rm java-analyzer analyze /app/demo-project /app/handoff
+
+services:
+  java-analyzer:
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ALLOW_CLOUD_CODE_ANALYSIS=true

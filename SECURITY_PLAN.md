@@ -87,6 +87,8 @@ Le passage par disque (nouvelle classe `HandoffBundle`) force la séparation str
 
 **Limite honnête** : la séparation ici est une séparation de *credentials et de code exécuté* (l'analyzer n'a structurellement pas la clé Anthropic), pas encore une séparation *réseau* stricte au niveau egress — les deux conteneurs restent sur les mêmes tiers Docker (`compute`+`observability`) sans firewall de sortie (cf. fenêtre 2, item non fait). Un vrai blocage réseau de l'egress Internet pour `java-analyzer` spécifiquement reste à faire via un proxy sortant.
 
+**Override démo assumé (`docker-compose.demo.yml`, ajouté 2026-07-10)** : la phase analyze est le vrai goulot d'étranglement (9-14 min/classe sur Ollama CPU vs 13-17s/classe sur Claude Haiku, mesuré). Pour une démo rapide sur du code non sensible (`demo-project`), un fichier d'override explicite réintroduit `ANTHROPIC_API_KEY` + `ALLOW_CLOUD_CODE_ANALYSIS=true` sur `java-analyzer` — tradeoff vitesse/sécurité assumé et documenté, pas un oubli. Ne change rien au comportement par défaut de `docker-compose.yml` (vérifié : sans le fichier d'override, ni la clé ni le flag n'apparaissent dans la config mergée de `java-analyzer`). Usage : `docker compose -f docker-compose.yml -f docker-compose.demo.yml run --rm java-analyzer analyze ...`. Ne jamais combiner avec du vrai code client. Si un GPU est disponible le jour de l'entretien, vLLM on-prem est probablement suffisamment rapide pour éviter ce compromis entièrement — à vérifier avant de sortir l'argument tradeoff.
+
 ---
 
 ## Contrainte technique bloquante
