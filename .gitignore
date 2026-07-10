@@ -4,3 +4,4 @@ agent/target/
 agent/dependency-reduced-pom.xml
 __pycache__/
 *.pyc
+.env

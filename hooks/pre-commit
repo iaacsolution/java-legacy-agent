@@ -2,6 +2,20 @@
 # Hook Git pre-commit — détection des changements cassants sur les signatures Java
 # Installation : cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
+echo "=== Secret Scan ==="
+SECRET_HITS=$(git diff --cached -U0 -- . ':!*.md' \
+    | grep -E '^\+' | grep -viE '^\+\+\+' \
+    | grep -iE '(password|passwd|secret|api[_-]?key|token)[A-Za-z_]*[[:space:]]*[:=][[:space:]]*[^[:space:]]+' \
+    | grep -viE '\$\{|\$\(|System\.getenv|process\.env|getenv\(' \
+    | grep -viE '[:=][[:space:]]*(EMPTY|true|false|changeme|placeholder|xxx+|TODO)[[:space:]"'"'"']*$')
+
+if [ -n "$SECRET_HITS" ]; then
+    echo "BLOQUÉ : secret potentiel en dur détecté dans le diff :"
+    echo "$SECRET_HITS"
+    echo "Utilisez une variable d'environnement (voir .env.example) au lieu d'une valeur en dur."
+    exit 1
+fi
+
 AGENT_IMAGE="java-legacy-agent-java-agent"
 PROJECT_PATH="/app/src"
 
