@@ -18,6 +18,10 @@ import java.nio.file.Paths;
  *
  *   Mode report  : java -jar app.jar report /dossier/handoff /chemin/vers/projet /dossier/sortie
  *                  → lit le HandoffBundle (jamais le code source brut), génère le rapport.
+ *
+ *   Mode serve   : java -jar app.jar serve /chemin/vers/projet [port]
+ *                  → expose BreakingChangeDetector en HTTP (POST /impact) pour un appelant
+ *                    externe (ex: jira-java-router, JAVA_AGENT_URL). Port par défaut : 8081.
  */
 public class Main {
 
@@ -107,6 +111,16 @@ public class Main {
                 RoiLogger.log(csvRoot, report);
                 System.exit(1);
             }
+
+        } else if (args.length >= 2 && args[0].equals("serve")) {
+            // ── Mode serveur d'impact — expose BreakingChangeDetector en HTTP ──
+            // Usage : serve <chemin_projet> [port]
+            Path projectPath = Paths.get(args[1]);
+            int port = args.length >= 3 ? Integer.parseInt(args[2]) : 8081;
+
+            new ImpactServer().start(projectPath, port);
+            // Le serveur tourne sur son propre thread HttpServer — ne pas quitter le process.
+            Thread.currentThread().join();
 
         } else if (args.length >= 1 && args[0].equals("eval")) {
             // ── Mode évaluation F1 ──────────────────────────────────
