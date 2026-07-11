@@ -155,7 +155,7 @@ public class LegacyMigrationOrchestrator {
 
                     AnalysisCommand<String> analyzeCmd = AnalysisCommand.of(
                             "analyze:" + file.className(),
-                            () -> documentationAgent.analyzeJavaClassWithAst(file.content(), ast));
+                            () -> documentationAgent.analyzeJavaClassWithAst(ast));
 
                     String specs = executeWithRetry(
                             file.className(), "analyze", metrics, analyzeCmd,

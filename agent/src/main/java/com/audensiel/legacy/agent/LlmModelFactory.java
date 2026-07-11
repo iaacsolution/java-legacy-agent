@@ -26,6 +26,21 @@ public class LlmModelFactory {
         return Boolean.parseBoolean(System.getenv().getOrDefault("ALLOW_CLOUD_CODE_ANALYSIS", "false"));
     }
 
+    /**
+     * True si create() va effectivement router vers Anthropic (cloud). Reflète exactement la même
+     * priorité que create() : vLLM d'abord (jamais cloud), puis Anthropic si clé + flag présents.
+     * Utilisé par les agents en amont de create() pour décider QUOI envoyer (ex: squelette anonymisé
+     * sans corps de méthode vers le cloud, code complet OK en local) — défense en profondeur qui ne
+     * dépend pas uniquement de la séparation infra (java-analyzer sans ANTHROPIC_API_KEY par défaut).
+     */
+    public static boolean isCloudActive() {
+        String vllmUrl = System.getenv("VLLM_BASE_URL");
+        String apiKey  = System.getenv("ANTHROPIC_API_KEY");
+        return (vllmUrl == null || vllmUrl.isBlank())
+                && apiKey != null && !apiKey.isBlank()
+                && cloudAllowed();
+    }
+
     /** Résumé une ligne du backend actif, pour la bannière de démarrage (Main). */
     public static String describeActiveBackend(String ollamaBaseUrl) {
         String vllmUrl = System.getenv("VLLM_BASE_URL");
