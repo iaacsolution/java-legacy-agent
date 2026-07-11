@@ -390,7 +390,7 @@ public class LegacyMigrationOrchestrator {
         return """
                 # Dossier de Migration — %s
 
-                > Généré le %s par Legacy Migration Orchestrator (Qwen2.5-Coder via Ollama)
+                > Généré le %s par Legacy Migration Orchestrator (%s)
 
                 ---
 
@@ -413,7 +413,7 @@ public class LegacyMigrationOrchestrator {
 
                 %s
                 """.formatted(
-                projectPath.getFileName(), timestamp, projectPath,
+                projectPath.getFileName(), timestamp, llmBackend, projectPath,
                 fileCount, dat, migrationPlan, specs);
     }
 
