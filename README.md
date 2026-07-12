@@ -36,10 +36,45 @@ MetricsPusher          → Prometheus metrics
 
 | Metric | Value |
 |--------|-------|
-| **F1 score** (component classification) | **0.748** |
+| **F1 score** (component classification) | **0.757**¹ |
 | **Time per class** (automated) | **~9 min** |
 | **Time per class** (manual) | 2–4 hours |
 | **Productivity gain** | **×15–25** |
+
+¹ See [Measured metrics — revision](#measured-metrics--revision) below for the parallelization
+speedup figure and why the previous ×1.9 number was retracted, not just replaced.
+
+### Measured metrics — revision
+
+Measured on `demo-project` (4 classes), cloud backend (Claude Haiku — the only backend where
+parallel workers actually help; Ollama serializes requests by design, see `LlmModelFactory`),
+`AGENT_WORKERS=4`, after commit `4128e54`.
+
+| Metric | Value | Method |
+|--------|-------|--------|
+| Parallelization speedup | **×2.50** (median of 3 runs) | 21.2s (1 worker) → 8.5s (4 workers), medians of 3 runs each — 1-worker range 20.9–23.1s, 4-worker range 8.3–10.8s. Identical payload sizes in both configs (288–378 chars); under 4 workers, all 4 requests dispatch at the same timestamp — real parallelism, not measurement noise. |
+| F1 (`AgentEvaluator`) | **0.757** | Golden dataset, temperature 0.1 |
+| Outbound payload (cloud path) | 288–378 chars | Signatures, field types, cyclomatic complexity, imports — never a method body, never a SQL literal |
+
+**Revision note.** The earlier ×1.9 speedup figure is retracted, not superseded by a bigger
+number. `JavaParser` (JavaParser library) was not thread-safe: `AstParserAgent` shared one
+instance across parallel workers, and concurrent `.parse()` calls threw
+`ConcurrentModificationException` — silently swallowed by a `catch (Exception ignored)` that made
+every class fall back to an *empty* analysis, with the pipeline still reporting success (exit 0).
+Fixed in `4128e54` (one `JavaParser` instance per call instead of a shared field, and the fallback
+is now a logged `WARN`, never silent). F1 is unaffected by this bug: `EvalMain` never instantiates
+`AstParserAgent` — verified by tracing the call path, then confirmed by actually re-running the
+eval, not by assuming the code read was enough.
+
+**Why the speedup went up after the fix, not down** — worth stating because it's
+counterintuitive: before the fix, every worker was processing a ~70-character stub. There was
+almost no real work to parallelize, so orchestration overhead dominated and the speedup
+collapsed. After the fix, there's real work to parallelize, so the same overhead becomes
+marginal — the speedup increases. A real payload parallelizes better than an empty one.
+
+**Methodology, stated plainly**: 4 classes, 3 runs per configuration, median reported alongside
+the observed range. This is an order-of-magnitude figure, not a statistically robust benchmark —
+small sample, one machine, cloud network variance not controlled for.
 
 ## Stack
 
