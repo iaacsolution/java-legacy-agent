@@ -5,6 +5,8 @@ import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
@@ -15,6 +17,8 @@ import java.util.stream.Collectors;
  * Backend LLM sélectionné dynamiquement par LlmModelFactory (vLLM, Ollama ou Anthropic).
  */
 public class JavaDocumentationAgent {
+
+    private static final Logger log = LoggerFactory.getLogger(JavaDocumentationAgent.class);
 
     // ── Interface de l'agent (vision micro — Qwen-Coder) ─────────────────────
     interface CodeAnalyzer {
@@ -166,9 +170,16 @@ public class JavaDocumentationAgent {
         System.out.println("🔍 Analyse AST + LLM (squelette + méthodes lourdes) : " + ast.className()
                 + (cloud ? " [cloud — corps de méthode jamais envoyé, squelette anonymisé]" : ""));
 
-        String skeletonSpecs = cloud
-                ? skeletonAnalyzer.analyzeSkeleton(ast.toAnonymizedPromptContext())
-                : skeletonAnalyzer.analyzeSkeleton(ast.toPromptContext());
+        String payload = cloud ? ast.toAnonymizedPromptContext() : ast.toPromptContext();
+
+        // Log DEBUG (off par défaut, voir logback.xml) du payload EXACT envoyé au LLM, juste
+        // avant l'appel — vérifiable sans re-instrumenter au prochain audit sécurité. Ajouté après
+        // un round d'audit où le payload réel (squelette AST) s'est avéré vide à cause d'un bug de
+        // concurrence indépendant (JavaParser partagé entre workers, non thread-safe — voir
+        // AstParserAgent.newParser()) : ne jamais supposer que "l'intention du code" == "ce qui part".
+        log.debug("Payload envoyé au LLM (cloud={}, {} caractères) : {}", cloud, payload.length(), payload);
+
+        String skeletonSpecs = skeletonAnalyzer.analyzeSkeleton(payload);
 
         StringBuilder result = new StringBuilder(skeletonSpecs);
 

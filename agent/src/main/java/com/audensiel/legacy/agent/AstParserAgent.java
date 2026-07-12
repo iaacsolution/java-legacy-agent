@@ -3,6 +3,8 @@ package com.audensiel.legacy.agent;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -139,19 +141,30 @@ public class AstParserAgent {
         }
     }
 
-    private final JavaParser parser = new JavaParser(
-        new ParserConfiguration()
-            .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17)
-    );
+    private static final Logger log = LoggerFactory.getLogger(AstParserAgent.class);
+
+    private static final ParserConfiguration PARSER_CONFIG = new ParserConfiguration()
+            .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
+
+    // JavaParser n'est pas thread-safe : une instance partagée entre les workers parallèles
+    // (AGENT_WORKERS>1, LegacyMigrationOrchestrator) provoquait des ConcurrentModificationException
+    // silencieusement avalées ci-dessous, qui faisaient retomber CHAQUE classe sur empty() — analyse
+    // vide envoyée au LLM tout en rapportant un succès. Une instance par appel élimine le partage
+    // d'état ; JavaParser est un objet léger, le coût de recréation est négligeable face à l'appel LLM.
+    private JavaParser newParser() {
+        return new JavaParser(PARSER_CONFIG);
+    }
 
     public AstAnalysis analyze(FileScannerAgent.JavaFile file) {
         try {
-            var result = parser.parse(file.content());
+            var result = newParser().parse(file.content());
             if (result.isSuccessful() && result.getResult().isPresent()) {
                 return fromCu(file.className(), result.getResult().get());
             }
-        } catch (Exception ignored) {
-            // Code partiel ou invalide — fallback silencieux
+            log.warn("Parsing AST échoué pour {} — fallback vide (aucun corps/signature ne sera envoyé au LLM) : {}",
+                    file.className(), result.getProblems());
+        } catch (Exception e) {
+            log.warn("Exception pendant le parsing AST de {} — fallback vide : {}", file.className(), e.toString());
         }
         return empty(file.className());
     }
