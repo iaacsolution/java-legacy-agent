@@ -16,6 +16,22 @@ if [ -n "$SECRET_HITS" ]; then
     exit 1
 fi
 
+echo "=== Anti-logRequests Guard ==="
+# .logRequests(true)/.logResponses(true) (LangChain4j) loguent aussi les headers HTTP,
+# donc le header x-api-key en clair -- deja tente et rejete une fois cette session
+# (voir historique), jamais laisse entrer dans le code. Empeche toute reintroduction.
+LOGREQ_HITS=$(git diff --cached -U0 -- '*.java' \
+    | grep -E '^\+' | grep -viE '^\+\+\+' \
+    | grep -iE '\.log(Requests|Responses)\([[:space:]]*true[[:space:]]*\)')
+
+if [ -n "$LOGREQ_HITS" ]; then
+    echo "BLOQUÉ : logRequests(true)/logResponses(true) détecté dans le diff :"
+    echo "$LOGREQ_HITS"
+    echo "Ce flag logue aussi les headers HTTP (donc x-api-key en clair). Ne jamais l'activer"
+    echo "sur un builder Anthropic/vLLM. Voir LlmModelFactory.java."
+    exit 1
+fi
+
 AGENT_IMAGE="java-legacy-agent-java-agent"
 PROJECT_PATH="/app/src"
 

@@ -109,6 +109,11 @@ mvn compile exec:java -Dexec.mainClass="com.audensiel.legacy.agent.Main" \
   -Dexec.args="--path /path/to/java/project"
 ```
 
+Secrets live in `.env` (gitignored, see `.env.example`) — sufficient for this
+personal-portfolio/POC scope. A real deployment would move them to a vault instead;
+see [SECURITY_PLAN.md](SECURITY_PLAN.md) for the key-rotation policy and the
+anti-`logRequests` guard already in place.
+
 ## Services
 
 | Service | Port | Purpose |
