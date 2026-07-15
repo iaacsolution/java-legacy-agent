@@ -12,39 +12,35 @@ Scans Java legacy code via AST analysis (JavaParser), generates technical docume
 
 LLM backend priority (`LlmModelFactory`): **vLLM local GPU** (continuous batching, real parallelism, sovereign) → Anthropic Claude Haiku (cloud fallback) → Ollama CPU (fallback, serializes requests — set `AGENT_WORKERS=1`).
 
+### Pipeline de migration (`LegacyMigrationOrchestrator`)
+
 ```
 Java codebase
     │
     ▼
 FileScannerAgent       → discovers all .java files
 AstParserAgent         → extracts classes, methods, dependencies
-CallGraphAgent         → maps call graph between components
-DependencyMapperAgent  → resolves inter-module dependencies
     │
     ▼
 JavaDocumentationAgent → LLM (Qwen local) generates DAT per class
 MigrationPlannerAgent  → produces prioritized migration plan
-RefactoringAdvisor     → suggests refactoring actions
     │
     ▼
-AgentEvaluator         → F1 scoring on classification quality
-RoiLogger              → logs time saved per class (CSV)
-MetricsPusher          → Prometheus metrics
+MetricsPusher          → Prometheus metrics (pushed after analyze and report phases)
 ```
 
-## Results
+### Modes annexes / CLI (outside the migration pipeline)
 
-| Metric | Value |
-|--------|-------|
-| **F1 score** (component classification) | **0.757**¹ |
-| **Time per class** (automated) | **~9 min** |
-| **Time per class** (manual) | 2–4 hours |
-| **Productivity gain** | **×15–25** |
+```
+CallGraphAgent + RefactoringAdvisor + RoiLogger
+    → mode `impact` / `serve` (BreakingChangeDetector) : detects breaking changes on a
+      single method, suggests a refactoring strategy, logs blocking changes to CSV
 
-¹ See [Measured metrics — revision](#measured-metrics--revision) below for the parallelization
-speedup figure and why the previous ×1.9 number was retracted, not just replaced.
+DependencyMapperAgent + AgentEvaluator
+    → mode `eval` (EvalMain) : F1 scoring against 3 hardcoded test cases
+```
 
-### Measured metrics — revision
+## Measured metrics — revision
 
 Measured on `demo-project` (4 classes), cloud backend (Claude Haiku — the only backend where
 parallel workers actually help; Ollama serializes requests by design, see `LlmModelFactory`),
