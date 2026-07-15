@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -31,7 +32,16 @@ public class ImpactServer {
 
     public void start(Path projectRoot, int port) throws IOException {
         BreakingChangeDetector detector = new BreakingChangeDetector();
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+
+        // Ecoute en local par defaut (127.0.0.1) -- zero authentification sur /impact,
+        // pas de raison d'etre joignable depuis le reseau par defaut. Elargissement
+        // explicite via IMPACT_SERVER_BIND_ALL=true, pour un futur deploiement
+        // multi-hote/conteneur qui en aurait reellement besoin.
+        boolean bindAll = Boolean.parseBoolean(System.getenv().getOrDefault("IMPACT_SERVER_BIND_ALL", "false"));
+        InetSocketAddress bindAddress = bindAll
+                ? new InetSocketAddress(port)
+                : new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
+        HttpServer server = HttpServer.create(bindAddress, 0);
 
         server.createContext("/health", exchange -> {
             byte[] body = "{\"status\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
@@ -68,7 +78,8 @@ public class ImpactServer {
         server.setExecutor(null); // executor par défaut (mono-thread, suffisant — analyse < 200ms)
         server.start();
 
-        System.out.println("🌐 Serveur d'impact démarré sur http://0.0.0.0:" + port);
+        System.out.println("🌐 Serveur d'impact démarré sur http://" + bindAddress.getHostString() + ":" + port
+                + (bindAll ? " (ecoute toutes interfaces — IMPACT_SERVER_BIND_ALL=true)" : " (local uniquement)"));
         System.out.println("   Projet scanné : " + projectRoot);
         System.out.println("   Endpoints : POST /impact {class_name, method_name} · GET /health");
         log.info("ImpactServer démarré sur le port {} pour le projet {}", port, projectRoot);
