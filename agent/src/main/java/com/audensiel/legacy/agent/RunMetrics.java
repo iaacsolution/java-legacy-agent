@@ -120,7 +120,7 @@ public class RunMetrics {
         json.append("  \"files_total\": ").append(s.filesTotal()).append(",\n");
         json.append("  \"files_success\": ").append(s.filesSuccess()).append(",\n");
         json.append("  \"files_failed\": ").append(s.filesFailed()).append(",\n");
-        json.append("  \"success_rate_pct\": ").append(String.format("%.1f", s.successRatePct())).append(",\n");
+        json.append("  \"success_rate_pct\": ").append(String.format(Locale.ROOT, "%.1f", s.successRatePct())).append(",\n");
         json.append("  \"steps\": [\n");
 
         for (int i = 0; i < steps.size(); i++) {
