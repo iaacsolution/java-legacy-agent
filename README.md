@@ -73,11 +73,20 @@ marginal — the speedup increases. A real payload parallelizes better than an e
 the observed range. This is an order-of-magnitude figure, not a statistically robust benchmark —
 small sample, one machine, cloud network variance not controlled for.
 
-**Traçabilité partielle** : le log de confirmation backend par run n'a pas été écrit (crash
-d'encodage survenu avant cette écriture sur ce run précis, corrigé depuis en `45b8c1b`). Le
-backend cloud actif est confirmé indirectement — le script sort en erreur si la bannière backend
-n'est pas "Anthropic Claude Haiku", jamais déclenché sur les 6 runs — mais sans preuve textuelle
-littérale conservée pour cette exécution spécifique.
+**Nouvelle mesure (2026-08-06, `scripts/benchmark_speedup.py`).** Médiane **20776 ms** à 1 worker
+(valeurs brutes des 3 runs : 21228, 20776, 20365 ms) vs médiane **7218 ms** à 4 workers (valeurs
+brutes : 6364, 8779, 7218 ms) → **×2.88**, contre ×2.50 historique ci-dessus.
+
+**Traçabilité partielle.** Le backend cloud actif est confirmé indirectement pour les 6 runs — le
+script sort en erreur si la bannière backend n'est pas "Anthropic Claude Haiku", jamais déclenché
+— mais la preuve textuelle littérale par run a été perdue à cause d'un bug d'encodage cosmétique
+sur cette exécution précise (le crash a eu lieu avant l'écriture du log de confirmation, corrigé
+séparément voir commit `45b8c1b`).
+
+**×2.88 vs ×2.50 : même zone, pas identiques.** Deux environnements/machines différents suffisent
+à expliquer l'écart — pas de recherche d'une justification plus précise sans données comparatives
+supplémentaires (même caveat de méthodologie que ci-dessus : petit échantillon, une seule
+machine, variance réseau cloud non contrôlée).
 
 ## Golden dataset
 
