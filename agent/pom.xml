@@ -54,6 +54,16 @@
             <version>3.25.10</version>
         </dependency>
 
+        <!-- Jackson — chargement de golden_dataset.json (EvalMain). Déjà présent en
+             transitif via langchain4j (converter-jackson) à cette version exacte ;
+             déclaré ici explicitement pour ne pas dépendre silencieusement d'une
+             résolution transitive qui pourrait changer si une autre dépendance évolue. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.16.1</version>
+        </dependency>
+
         <!-- OpenTelemetry — traces vers Phoenix/Arize -->
         <dependency>
             <groupId>io.opentelemetry</groupId>

@@ -37,7 +37,8 @@ CallGraphAgent + RefactoringAdvisor + RoiLogger
       single method, suggests a refactoring strategy, logs blocking changes to CSV
 
 DependencyMapperAgent + AgentEvaluator
-    → mode `eval` (EvalMain) : F1 scoring against 3 hardcoded test cases
+    → mode `eval` (EvalMain) : F1 scoring against golden_dataset.json (5 cases, see
+      "Golden dataset" below — not hardcoded anymore)
 ```
 
 ## Measured metrics — revision
@@ -49,7 +50,7 @@ parallel workers actually help; Ollama serializes requests by design, see `LlmMo
 | Metric | Value | Method |
 |--------|-------|--------|
 | Parallelization speedup | **×2.50** (median of 3 runs) | 21.2s (1 worker) → 8.5s (4 workers), medians of 3 runs each — 1-worker range 20.9–23.1s, 4-worker range 8.3–10.8s. Identical payload sizes in both configs (288–378 chars); under 4 workers, all 4 requests dispatch at the same timestamp — real parallelism, not measurement noise. |
-| F1 (`AgentEvaluator`) | **0.757** | Golden dataset, temperature 0.1 |
+| F1 (`AgentEvaluator`) | **0.802** (5 cas) | Golden dataset, temperature 0.1 — voir "Golden dataset" ci-dessous, pas comparable au 0.757 historique (3 cas) |
 | Outbound payload (cloud path) | 288–378 chars | Signatures, field types, cyclomatic complexity, imports — never a method body, never a SQL literal |
 
 **Revision note.** The earlier ×1.9 speedup figure is retracted, not superseded by a bigger
@@ -71,6 +72,47 @@ marginal — the speedup increases. A real payload parallelizes better than an e
 **Methodology, stated plainly**: 4 classes, 3 runs per configuration, median reported alongside
 the observed range. This is an order-of-magnitude figure, not a statistically robust benchmark —
 small sample, one machine, cloud network variance not controlled for.
+
+## Golden dataset
+
+Cas de test chargés depuis `golden_dataset.json` (racine du projet) par `EvalMain`, plus codés en
+dur dans le source. 5 cas : les 3 originaux (EJB `ClientServiceBean`, Struts `CommandeAction`,
+Singleton `ConfigurationManager`) inchangés, + 2 nouveaux (`InvoiceDao` — injection SQL et fuite de
+ressource ; `AuditLogServiceImpl` — exception avalée silencieusement).
+
+**F1 = 0.802 sur les 5 cas actuels — pas directement comparable au 0.757 historique (3 cas).** Les
+2 nouveaux cas évitent volontairement le bug `FIELD_PATTERN` décrit plus bas, ce qui tire
+mécaniquement la moyenne `DependencyMapper` vers le haut (0.502 → 0.701 sur les composantes
+mesurées). Ce n'est pas une amélioration du pipeline, seulement un effet de composition du
+dataset.
+
+**Non-régression vérifiée séparément, pas seulement supposée.** En ré-exécutant `EvalMain` sur les
+3 cas d'origine seuls (dataset isolé, temporaire), le F1 global retombe exactement sur **0.757**,
+identique au chiffre historique — confirme que le passage du hardcode au chargement JSON n'a rien
+changé au calcul.
+
+**Limite connue — le F1 n'est pas parfaitement reproductible d'un run à l'autre.** La composante
+déterministe (`DependencyMapperAgent`, regex, sans LLM) est bit-identique entre deux runs
+indépendants sur les mêmes 3 cas (F1 = 0.571 / 0.933 / 0.000, à chaque fois). Les composantes qui
+dépendent du LLM (rappel de mots-clés sur risques et responsabilités) varient réellement d'un
+appel à l'autre, même à température 0.1 — observé concrètement lors de cette session : le F1
+"Risques" du cas 1 est sorti à 0.923 puis 0.833 sur deux runs successifs, mêmes code et mêmes clés
+de vérité. Traiter "0.757" ou "0.802" comme une valeur figée serait trompeur ; ce sont des points
+de mesure, pas des constantes.
+
+**Bug connu, non corrigé volontairement — `DependencyMapperAgent.FIELD_PATTERN`.** Sur un champ
+`private static final Type name`, le pattern capture `"static"` comme si c'était le type, jamais
+`Type`. Concrètement : `Logger` (cas1) et `Map`/`HashMap` (cas3) ne sont jamais extraits, malgré
+leur présence dans le code — TODO documenté au-dessus de `FIELD_PATTERN` dans
+`DependencyMapperAgent.java`. Déjà présent dans le F1 = 0.757 historique, pas une régression
+introduite ici. Correctif prévu dans un commit séparé, avec re-mesure du F1 après coup — le
+corriger silencieusement dans ce commit aurait invalidé le test de non-régression ci-dessus.
+
+**Taille du dataset — 5 cas, volontairement limité.** Représentatif du style de code legacy visé
+(EJB, Struts, Singleton, DAO JDBC brut, exception avalée), mais reste un échantillon réduit pour
+un score censé représenter la qualité du pipeline sur du code legacy réel et varié. Étendre le
+dataset (plus de cas, davantage de diversité de risques) est une amélioration future, pas traitée
+ici faute de temps dans cette session.
 
 ## Stack
 

@@ -20,6 +20,14 @@ public class DependencyMapperAgent {
     private static final Pattern IMPORT_PATTERN    = Pattern.compile("^import\\s+([\\w.]+);", Pattern.MULTILINE);
     private static final Pattern EXTENDS_PATTERN   = Pattern.compile("class\\s+\\w+\\s+extends\\s+(\\w+)");
     private static final Pattern IMPLEMENTS_PATTERN = Pattern.compile("implements\\s+([\\w,\\s]+)\\{");
+    // TODO(bug connu, non corrigé volontairement) : sur "private static final Type name",
+    // ce pattern capture "static" comme si c'était le type, pas "Type" (ex: "private
+    // static final Logger log" → capture "static", jamais "Logger"). Vérifié
+    // empiriquement sur golden_dataset.json cas1 : GT contient "Logger" que
+    // l'extraction ne trouve jamais, ce déficit de recall fait déjà partie du F1
+    // baseline (0.757, voir README.md "Golden dataset"). Ne pas corriger sans
+    // rouvrir explicitement le test de non-régression F1 — un fix ici changerait
+    // le F1 mesuré. Correctif prévu dans un commit séparé.
     private static final Pattern FIELD_PATTERN     = Pattern.compile("private\\s+(\\w+)\\s+\\w+");
 
     public ClassDependencies analyze(FileScannerAgent.JavaFile file) {

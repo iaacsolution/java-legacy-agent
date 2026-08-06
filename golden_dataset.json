@@ -1,0 +1,133 @@
+[
+  {
+    "name": "cas1",
+    "description": "EJB ClientServiceBean",
+    "javaCode": "import java.sql.Connection;\nimport java.sql.PreparedStatement;\nimport java.sql.ResultSet;\nimport java.sql.SQLException;\nimport javax.sql.DataSource;\n\npublic class ClientServiceBean implements ClientService {\n    private static final Logger log = Logger.getLogger(ClientServiceBean.class);\n    private DataSource dataSource;\n\n    public Client findClientByCode(String codeClient) throws ServiceException {\n        Connection conn = null;\n        PreparedStatement ps = null;\n        ResultSet rs = null;\n        try {\n            conn = dataSource.getConnection();\n            ps = conn.prepareStatement(\n                \"SELECT CLI_ID, CLI_NOM FROM T_CLIENT WHERE CLI_CODE = ? AND CLI_STATUT != 'S'\");\n            ps.setString(1, codeClient);\n            rs = ps.executeQuery();\n            if (rs.next()) {\n                Client client = new Client();\n                client.setId(rs.getLong(\"CLI_ID\"));\n                return client;\n            }\n        } catch (SQLException e) {\n            log.error(\"Erreur\", e);\n            throw new ServiceException(\"Erreur base de donnees\", e);\n        } finally {\n            try { if (rs   != null) rs.close();   } catch (SQLException e) { log.warn(e); }\n            try { if (ps   != null) ps.close();   } catch (SQLException e) { log.warn(e); }\n            try { if (conn != null) conn.close();  } catch (SQLException e) { log.warn(e); }\n        }\n        return null;\n    }\n}",
+    "expectedDependencies": [
+      "Connection",
+      "PreparedStatement",
+      "ResultSet",
+      "DataSource",
+      "Client",
+      "ServiceException",
+      "Logger"
+    ],
+    "expectedRiskKeywords": [
+      "ressource",
+      "finally",
+      "warn",
+      "try-with-resources",
+      "fuite",
+      "dette",
+      "SQLException"
+    ],
+    "expectedResponsibilities": [
+      "client",
+      "base de données",
+      "connexion",
+      "code"
+    ]
+  },
+  {
+    "name": "cas2",
+    "description": "Struts CommandeAction",
+    "javaCode": "import org.apache.struts.action.Action;\nimport org.apache.struts.action.ActionForm;\nimport org.apache.struts.action.ActionForward;\nimport org.apache.struts.action.ActionMapping;\nimport javax.servlet.http.HttpServletRequest;\nimport javax.servlet.http.HttpServletResponse;\n\npublic class CommandeAction extends Action {\n    private CommandeService commandeService;\n\n    public ActionForward execute(ActionMapping mapping, ActionForm form,\n                                 HttpServletRequest request, HttpServletResponse response) {\n        CommandeForm commandeForm = (CommandeForm) form;\n        try {\n            Commande commande = commandeService.creerCommande(commandeForm.getClientId());\n            request.setAttribute(\"commande\", commande);\n            return mapping.findForward(\"success\");\n        } catch (Exception e) {\n            request.setAttribute(\"erreur\", e.getMessage());\n            return mapping.findForward(\"error\");\n        }\n    }\n}",
+    "expectedDependencies": [
+      "Action",
+      "ActionForm",
+      "ActionForward",
+      "ActionMapping",
+      "HttpServletRequest",
+      "HttpServletResponse",
+      "CommandeService",
+      "Commande"
+    ],
+    "expectedRiskKeywords": [
+      "struts",
+      "couplage",
+      "servlet",
+      "exception",
+      "migration",
+      "spring",
+      "mvc"
+    ],
+    "expectedResponsibilities": [
+      "commande",
+      "action",
+      "formulaire",
+      "navigation"
+    ]
+  },
+  {
+    "name": "cas3",
+    "description": "Singleton ConfigurationManager",
+    "javaCode": "public class ConfigurationManager {\n    private static ConfigurationManager instance;\n    private static final Map<String, String> config = new HashMap<>();\n\n    private ConfigurationManager() {}\n\n    public static ConfigurationManager getInstance() {\n        if (instance == null) {\n            instance = new ConfigurationManager();\n        }\n        return instance;\n    }\n\n    public String get(String key) { return config.get(key); }\n    public void set(String key, String value) { config.put(key, value); }\n}",
+    "expectedDependencies": [
+      "Map",
+      "HashMap"
+    ],
+    "expectedRiskKeywords": [
+      "singleton",
+      "thread",
+      "synchroni",
+      "concurren",
+      "état partagé",
+      "instance"
+    ],
+    "expectedResponsibilities": [
+      "configuration",
+      "clé",
+      "valeur"
+    ]
+  },
+  {
+    "name": "cas4",
+    "description": "InvoiceDao (JDBC brut, injection SQL + fuite de ressource)",
+    "javaCode": "import java.sql.Connection;\nimport java.sql.Statement;\nimport java.sql.ResultSet;\nimport java.sql.SQLException;\nimport javax.sql.DataSource;\n\npublic class InvoiceDao {\n    private DataSource dataSource;\n\n    public double getTotalForClient(String clientCode) throws SQLException {\n        Connection conn = dataSource.getConnection();\n        Statement stmt = conn.createStatement();\n        ResultSet rs = stmt.executeQuery(\n            \"SELECT SUM(FAC_MONTANT) FROM T_FACTURE WHERE FAC_CLIENT_CODE = '\" + clientCode + \"'\");\n        double total = 0;\n        if (rs.next()) {\n            total = rs.getDouble(1);\n        }\n        return total;\n    }\n}",
+    "expectedDependencies": [
+      "Connection",
+      "Statement",
+      "ResultSet",
+      "SQLException",
+      "DataSource"
+    ],
+    "expectedRiskKeywords": [
+      "injection",
+      "sql",
+      "ressource",
+      "fuite",
+      "finally",
+      "dette"
+    ],
+    "expectedResponsibilities": [
+      "facture",
+      "total",
+      "client",
+      "base de données"
+    ]
+  },
+  {
+    "name": "cas5",
+    "description": "AuditLogServiceImpl (exception avalée silencieusement)",
+    "javaCode": "import java.util.logging.Logger;\n\npublic class AuditLogServiceImpl implements AuditLogService {\n    private NotificationService notifService;\n\n    public void logAction(String userId, String action) {\n        try {\n            notifService.notifyAudit(userId, action);\n        } catch (Exception e) {\n            // ignore\n        }\n    }\n}",
+    "expectedDependencies": [
+      "Logger",
+      "AuditLogService",
+      "NotificationService"
+    ],
+    "expectedRiskKeywords": [
+      "silencieu",
+      "avalée",
+      "catch",
+      "ignor",
+      "exception",
+      "audit"
+    ],
+    "expectedResponsibilities": [
+      "audit",
+      "notification",
+      "journalisation",
+      "action"
+    ]
+  }
+]
