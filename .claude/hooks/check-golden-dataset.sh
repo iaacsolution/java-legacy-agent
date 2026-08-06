@@ -33,4 +33,5 @@ fi
 # 4. Pas de rapport frais → bloque et force l'appel au subagent (qui, lui, relance l'éval)
 echo "⚠️  Fichiers du pipeline modifiés sans rapport Golden Dataset PASS pour ce commit." >&2
 echo "Invoque le subagent golden-dataset-evaluator avant de terminer." >&2
+echo "Invoque aussi le subagent cold-diff-reviewer avant de considérer la tâche terminée." >&2
 exit 2
