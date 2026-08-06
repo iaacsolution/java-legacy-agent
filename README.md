@@ -73,6 +73,12 @@ marginal — the speedup increases. A real payload parallelizes better than an e
 the observed range. This is an order-of-magnitude figure, not a statistically robust benchmark —
 small sample, one machine, cloud network variance not controlled for.
 
+**Traçabilité partielle** : le log de confirmation backend par run n'a pas été écrit (crash
+d'encodage survenu avant cette écriture sur ce run précis, corrigé depuis en `45b8c1b`). Le
+backend cloud actif est confirmé indirectement — le script sort en erreur si la bannière backend
+n'est pas "Anthropic Claude Haiku", jamais déclenché sur les 6 runs — mais sans preuve textuelle
+littérale conservée pour cette exécution spécifique.
+
 ## Golden dataset
 
 Cas de test chargés depuis `golden_dataset.json` (racine du projet) par `EvalMain`, plus codés en
