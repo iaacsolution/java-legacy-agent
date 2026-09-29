@@ -16,6 +16,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <langchain4j.version>0.36.2</langchain4j.version>
         <otel.version>1.38.0</otel.version>
+        <junit.version>5.11.4</junit.version>
+
+        <!-- Groupes JUnit exclus du build par défaut. Passé par indirection de propriété
+             (et non codé en dur dans la configuration du plugin) pour rester surchargeable
+             en ligne de commande : mvn test -Dgroups=integration -DexcludedGroups= -->
+        <excludedGroups>integration</excludedGroups>
     </properties>
 
     <dependencies>
@@ -92,10 +98,38 @@
             <artifactId>logstash-logback-encoder</artifactId>
             <version>7.4</version>
         </dependency>
+
+        <!-- Pilote PostgreSQL — flight recorder TimescaleDB (base legacyrec).
+             Portée compile et non runtime : SpanWriter utilise directement l'API
+             org.postgresql.copy.CopyManager, spécifique à PgJDBC, pas seulement JDBC. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.4</version>
+        </dependency>
+
+        <!-- Tests — première dépendance de test du projet (aucune n'existait) -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Surefire — découverte JUnit 5. Les tests marqués @Tag("integration")
+                 (round-trip réel contre legacyrec) sont exclus du build par défaut. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+                <configuration>
+                    <excludedGroups>${excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
