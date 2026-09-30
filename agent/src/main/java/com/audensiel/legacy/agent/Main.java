@@ -1,5 +1,7 @@
 package com.audensiel.legacy.agent;
 
+import com.audensiel.legacy.agent.observability.SpanRecorder;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -75,6 +77,12 @@ public class Main {
 
         PipelineTracer.init(otlpEndpoint);
 
+        // Flight recorder — inerte sans FLIGHTREC_ENABLED=true. Fermé par un hook d'arrêt
+        // plutôt qu'en fin de chaque branche : le mode impact sort par System.exit(1), qui
+        // court-circuiterait un finally et ferait perdre les spans encore en file.
+        SpanRecorder recorder = SpanRecorder.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(recorder::close, "flightrec-shutdown"));
+
         System.out.println("🚀 Java Legacy Migration Agent");
         System.out.println("🧠 LLM backend: " + LlmModelFactory.describeActiveBackend(ollamaUrl));
         System.out.println("📊 OTLP endpoint: " + otlpEndpoint);
@@ -95,8 +103,12 @@ public class Main {
             System.out.println("─".repeat(60));
 
             BreakingChangeDetector detector = new BreakingChangeDetector();
+            // Racine « impact » : CallGraphAgent ne passe jamais par l'orchestrateur ni par
+            // RunMetrics.track, il ne serait donc couvert par aucun span sans cette racine.
             BreakingChangeDetector.BreakingChangeReport report =
-                    detector.analyze(projectPath, className, methodName);
+                    recorder.call("run", "CallGraphAgent", "impact",
+                            java.util.Map.of("class", className, "method", methodName),
+                            () -> detector.analyze(projectPath, className, methodName));
 
             if (json) {
                 System.out.println(report.toJson());

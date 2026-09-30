@@ -15,6 +15,8 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import com.audensiel.legacy.agent.observability.SpanContext;
+import com.audensiel.legacy.agent.observability.SpanRecorder;
 
 /**
  * Orchestrateur — coordonne les agents pour produire un dossier de migration.
@@ -85,7 +87,8 @@ public class LegacyMigrationOrchestrator {
     public void runAnalyzePhase(Path projectPath, Path handoffDir) throws IOException {
 
         String projectName = projectPath.getFileName().toString();
-        RunMetrics metrics = new RunMetrics(projectName);
+        SpanRecorder recorder = SpanRecorder.get();
+        RunMetrics metrics = new RunMetrics(projectName, recorder);
         Tracer tracer = PipelineTracer.get();
 
         Span batchSpan = tracer.spanBuilder("analyze-batch")
@@ -93,6 +96,12 @@ public class LegacyMigrationOrchestrator {
             .setAttribute("llm.backend", llmBackend)
             .startSpan();
         Context batchCtx = Context.current().with(batchSpan);
+
+        // Racine « analyze » du flight recorder. Les phases analyze et report sont deux
+        // process JVM distincts (services java-analyzer / java-reporter) : elles produisent
+        // donc deux racines sous un même run_id partagé par FLIGHTREC_RUN_ID.
+        var runSpan = recorder.span("run", "LegacyMigrationOrchestrator", "analyze");
+        runSpan.attribute("project", projectName).attribute("llm.backend", llmBackend);
 
         System.out.println("=".repeat(60));
         System.out.println("  ANALYZER — ingestion du code source (jamais de sortie cloud)");
@@ -108,6 +117,7 @@ public class LegacyMigrationOrchestrator {
         if (javaFiles.isEmpty()) {
             System.out.println("Aucun fichier Java trouvé. Arrêt.");
             batchSpan.end();
+            runSpan.attribute("batch.size", 0).close();
             return;
         }
 
@@ -123,6 +133,11 @@ public class LegacyMigrationOrchestrator {
         List<Future<ClassResult>> futures = new ArrayList<>();
         final long batchStartMs = System.currentTimeMillis();
 
+        // Contexte parent capturé AVANT la soumission : avec AGENT_WORKERS>1 les tâches
+        // s'exécutent sur d'autres threads, où un ThreadLocal ne propage rien. Même
+        // raison, même geste que le capturedCtx d'OpenTelemetry juste en dessous.
+        final SpanContext capturedRunCtx = recorder.current();
+
         for (int i = 0; i < javaFiles.size(); i++) {
             final FileScannerAgent.JavaFile file = javaFiles.get(i);
             final Context capturedCtx = batchCtx;
@@ -132,7 +147,8 @@ public class LegacyMigrationOrchestrator {
                     .setParent(capturedCtx)
                     .setAttribute("class.name", file.className())
                     .startSpan();
-                try (Scope ignored = classSpan.makeCurrent()) {
+                try (Scope ignored = classSpan.makeCurrent();
+                     SpanRecorder.Scope ignoredRec = recorder.adopt(capturedRunCtx)) {
                     AstParserAgent.AstAnalysis ast = metrics.track(
                             file.className(), "ast", () -> astParser.analyze(file));
 
@@ -144,7 +160,8 @@ public class LegacyMigrationOrchestrator {
 
                     classSpan.setAttribute("cyclomatic_complexity", ast.cyclomaticComplexity());
 
-                    PromptInjectionScanner.ScanResult scanResult = PromptInjectionScanner.scan(file.content());
+                    PromptInjectionScanner.ScanResult scanResult = metrics.track(
+                            file.className(), "injection-scan", () -> PromptInjectionScanner.scan(file.content()));
                     classSpan.setAttribute("injection_scan.suspicious", scanResult.suspicious());
                     if (scanResult.suspicious()) {
                         log.warn("Pattern(s) d'injection potentielle détecté(s) avant analyse — classe={} patterns={}",
@@ -249,8 +266,11 @@ public class LegacyMigrationOrchestrator {
         String aggregatedSpecs = String.join("\n\n---\n\n", allSpecs);
 
         // ── Carte des dépendances AST ────────────────────────────
+        // Passe par metrics.track : c'est du travail d'AstParserAgent qui, contrairement à
+        // analyze(), n'était mesuré nulle part — l'agent n'aurait été couvert qu'à moitié.
         System.out.println("\n[3/3] Carte des dépendances AST...");
-        String dependencyReport = astParser.buildDependencyReport(astResults);
+        String dependencyReport = metrics.track(
+                projectName, "dependency-report", () -> astParser.buildDependencyReport(astResults));
 
         HandoffBundle.write(handoffDir, new HandoffBundle.Data(
                 projectName, javaFiles.size(), aggregatedSpecs, dependencyReport));
@@ -260,6 +280,9 @@ public class LegacyMigrationOrchestrator {
         metricsPusher.push(projectName + "-analyze", metrics.buildSummary());
 
         batchSpan.end();
+        runSpan.attribute("batch.size", javaFiles.size())
+               .attribute("workers", workers)
+               .close();
 
         System.out.println("\n" + "=".repeat(60));
         System.out.println("Analyse terminée — bundle : " + handoffDir.resolve(projectName));
@@ -277,13 +300,20 @@ public class LegacyMigrationOrchestrator {
 
         String projectName = projectPath.getFileName().toString();
         HandoffBundle.Data bundle = HandoffBundle.read(handoffDir, projectName);
-        RunMetrics metrics = new RunMetrics(projectName);
+        SpanRecorder recorder = SpanRecorder.get();
+        RunMetrics metrics = new RunMetrics(projectName, recorder);
         Tracer tracer = PipelineTracer.get();
 
         Span batchSpan = tracer.spanBuilder("report-batch")
             .setAttribute("project.name", projectName)
             .setAttribute("llm.backend", llmBackend)
             .startSpan();
+
+        // Seconde racine du même run_id — voir le commentaire de la phase analyze.
+        var runSpan = recorder.span("run", "LegacyMigrationOrchestrator", "report");
+        runSpan.attribute("project", projectName)
+               .attribute("llm.backend", llmBackend)
+               .attribute("file.count", bundle.fileCount());
 
         System.out.println("=".repeat(60));
         System.out.println("  REPORTER — synthèse à partir des specs (jamais le code brut)");
@@ -332,6 +362,7 @@ public class LegacyMigrationOrchestrator {
             log.info("Phase report terminée — rapport={}", outputFile);
         } finally {
             batchSpan.end();
+            runSpan.close();   // le span de run est fermé même si la phase échoue
         }
     }
 

@@ -228,9 +228,20 @@ public final class SpanRecorder implements AutoCloseable {
      * portion de prompt.
      */
     public <T> T call(String kind, String agent, String name, ThrowingSupplier<T> body) throws Exception {
+        return call(kind, agent, name, Map.of(), body);
+    }
+
+    /**
+     * Variante posant des attributs sur le span avant d'exécuter le corps. Existe pour que
+     * la gestion des échecs reste écrite à un seul endroit plutôt que recopiée partout où
+     * un span a besoin d'un attribut.
+     */
+    public <T> T call(String kind, String agent, String name,
+                      Map<String, ?> attributes, ThrowingSupplier<T> body) throws Exception {
         if (sink == null) return body.get();   // désactivé : aucun surcoût
 
         Span span = span(kind, agent, name);
+        attributes.forEach(span::attribute);
         try {
             T result = body.get();
             span.status("ok");

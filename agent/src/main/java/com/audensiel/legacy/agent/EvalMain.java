@@ -1,5 +1,6 @@
 package com.audensiel.legacy.agent;
 
+import com.audensiel.legacy.agent.observability.SpanRecorder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -47,9 +48,19 @@ public class EvalMain {
 
         List<double[]> f1Scores = new ArrayList<>();
 
-        for (GoldenCase gc : cases) {
-            System.out.println("\n━━━ " + gc.name() + " : " + gc.description() + " ━━━");
-            f1Scores.add(runTestCase(evaluator, depMapper, docAgent, gc));
+        // Racine « eval ». DependencyMapperAgent et AgentEvaluator ne sont instanciés que
+        // dans ce mode : sans cette racine, ces deux agents n'apparaîtraient dans aucun span.
+        SpanRecorder recorder = SpanRecorder.get();
+        RunMetrics metrics = new RunMetrics("golden-dataset", recorder);
+
+        try (var runSpan = recorder.span("run", "AgentEvaluator", "eval")) {
+            runSpan.attribute("dataset", datasetPath.getFileName().toString())
+                   .attribute("cases", cases.size());
+
+            for (GoldenCase gc : cases) {
+                System.out.println("\n━━━ " + gc.name() + " : " + gc.description() + " ━━━");
+                f1Scores.add(runTestCase(evaluator, depMapper, docAgent, gc, metrics));
+            }
         }
 
         // ── Score global ──────────────────────────────────────────
@@ -81,7 +92,8 @@ public class EvalMain {
             AgentEvaluator evaluator,
             DependencyMapperAgent depMapper,
             JavaDocumentationAgent docAgent,
-            GoldenCase gc) {
+            GoldenCase gc,
+            RunMetrics metrics) {
 
         Set<String> gtDeps = new HashSet<>(gc.expectedDependencies());
         Set<String> gtRisks = new HashSet<>(gc.expectedRiskKeywords());
@@ -90,7 +102,8 @@ public class EvalMain {
         // ── DependencyMapper (regex, déterministe) ────────────────
         FileScannerAgent.JavaFile fakeFile = new FileScannerAgent.JavaFile(
                 Path.of(gc.name() + ".java"), gc.name(), gc.javaCode());
-        DependencyMapperAgent.ClassDependencies deps = depMapper.analyze(fakeFile);
+        DependencyMapperAgent.ClassDependencies deps = metrics.track(
+                gc.name(), "dependency-map", () -> depMapper.analyze(fakeFile));
 
         // Toutes les entités extraites (imports + champs + extends + implements)
         Set<String> extracted = new HashSet<>();
@@ -99,12 +112,14 @@ public class EvalMain {
         extracted.addAll(deps.extendsList());
         extracted.addAll(deps.implementsList());
 
-        AgentEvaluator.EvalResult depResult = evaluator.evaluateExact(extracted, gtDeps);
+        AgentEvaluator.EvalResult depResult = metrics.track(
+                gc.name(), "evaluate", () -> evaluator.evaluateExact(extracted, gtDeps));
         AgentEvaluator.printReport("DependencyMapper", depResult);
 
         // ── CodeAnalyzer LLM ──────────────────────────────────────
         System.out.println("  → Appel LLM pour l'analyse...");
-        String llmOutput = docAgent.analyzeJavaClass(gc.javaCode(), "", false, false);
+        String llmOutput = metrics.track(
+                gc.name(), "analyze", () -> docAgent.analyzeJavaClass(gc.javaCode(), "", false, false));
 
         AgentEvaluator.EvalResult riskResult = evaluator.evaluateKeywords(llmOutput, gtRisks);
         AgentEvaluator.printReport("Risques (LLM keyword recall)", riskResult);

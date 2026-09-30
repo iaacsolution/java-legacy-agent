@@ -1,5 +1,6 @@
 package com.audensiel.legacy.agent;
 
+import com.audensiel.legacy.agent.observability.SpanRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -51,12 +52,69 @@ public class RunMetrics {
     private final AtomicInteger filesSuccess = new AtomicInteger();
     private final AtomicInteger filesFailed  = new AtomicInteger();
 
+    private final SpanRecorder recorder;
+
     public RunMetrics(String projectName) {
+        this(projectName, SpanRecorder.get());
+    }
+
+    /** Variante explicite — utilisée par les tests pour injecter un enregistreur. */
+    public RunMetrics(String projectName, SpanRecorder recorder) {
         this.projectName = projectName;
+        this.recorder    = recorder;
+    }
+
+    /**
+     * Nom de l'agent responsable d'une étape.
+     *
+     * <p>Le paramètre {@code className} de {@link #track} est la <em>classe analysée</em>,
+     * pas l'agent : il part en attribut. L'agent, lui, se déduit du nom d'étape.
+     * Le suffixe {@code _retryN} posé par {@code executeWithRetry} est retiré, sinon
+     * chaque tentative apparaîtrait comme un agent différent.
+     */
+    static String agentForStep(String stepName) {
+        String base = stepName.replaceAll("_retry\\d+$", "");
+        return switch (base) {
+            case "scan"               -> "FileScannerAgent";
+            case "ast",
+                 "dependency-report"  -> "AstParserAgent";
+            case "injection-scan"     -> "PromptInjectionScanner";
+            case "analyze", "dat"     -> "JavaDocumentationAgent";
+            case "migration-plan"     -> "MigrationPlannerAgent";
+            case "dependency-map"     -> "DependencyMapperAgent";
+            case "evaluate"           -> "AgentEvaluator";
+            case "call-graph"         -> "CallGraphAgent";
+            default                   -> "unknown";
+        };
     }
 
     // ── Enregistre une étape avec timing ────────────────────────────────────
+
+    /**
+     * Point d'instrumentation unique des étapes d'agent : toutes passent déjà par ici avec
+     * leur nom et leur timing, donc le span « agent » s'y greffe sans toucher aux agents.
+     */
     public <T> T track(String className, String stepName, StepSupplier<T> supplier) {
+        if (!recorder.enabled()) return trackInternal(className, stepName, supplier);
+
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("class", className);
+        attributes.put("step", stepName);
+        if (stepName.matches(".*_retry\\d+$")) {
+            attributes.put("retry", stepName.replaceAll(".*_retry(\\d+)$", "$1"));
+        }
+
+        try {
+            return recorder.call("agent", agentForStep(stepName), stepName, attributes,
+                    () -> trackInternal(className, stepName, supplier));
+        } catch (RuntimeException e) {
+            throw e;                              // trackInternal n'échoue qu'en RuntimeException
+        } catch (Exception e) {
+            throw new RuntimeException("Échec étape [" + stepName + "] sur " + className, e);
+        }
+    }
+
+    private <T> T trackInternal(String className, String stepName, StepSupplier<T> supplier) {
         long start = System.currentTimeMillis();
         MDC.put("className", className);
         MDC.put("step", stepName);

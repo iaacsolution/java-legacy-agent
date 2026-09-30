@@ -1,7 +1,9 @@
 package com.audensiel.legacy.agent;
 
+import com.audensiel.legacy.agent.observability.SpanRecorder;
 import dev.langchain4j.model.anthropic.AnthropicChatModel;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 
@@ -58,6 +60,20 @@ public class LlmModelFactory {
         return "Ollama local CPU — " + ollamaBaseUrl + " (sérialise, AGENT_WORKERS=1 conseillé)";
     }
 
+    /**
+     * Écouteurs du flight recorder, attachés ici plutôt que dans chaque agent.
+     *
+     * <p>create() est l'unique site de construction de modèle du projet : un écouteur posé
+     * ici couvre tous les appels LLM du pipeline sans qu'aucun agent ne soit modifié.
+     *
+     * <p>L'écouteur ne lit que le décompte de jetons et le nom du modèle — jamais les
+     * messages de la requête ni la réponse. À ne pas confondre avec logRequests/logResponses,
+     * qui logueraient aussi les en-têtes HTTP (voir le garde pre-commit du dépôt).
+     */
+    private static java.util.List<ChatModelListener> listeners() {
+        return java.util.List.of(SpanRecorder.get().chatModelListener());
+    }
+
     public static ChatLanguageModel create(String ollamaBaseUrl, double temperature, Duration timeout) {
         String vllmUrl  = System.getenv("VLLM_BASE_URL");
         String apiKey   = System.getenv("ANTHROPIC_API_KEY");
@@ -71,6 +87,7 @@ public class LlmModelFactory {
                     .temperature(temperature)
                     .maxTokens(2048)
                     .timeout(timeout)
+                    .listeners(listeners())
                     .build();
         }
 
@@ -82,6 +99,7 @@ public class LlmModelFactory {
                         .modelName("claude-haiku-4-5-20251001")
                         .temperature(temperature)
                         .maxTokens(2048)
+                        .listeners(listeners())
                         .build();
             }
             System.out.println("  [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — "
@@ -94,6 +112,7 @@ public class LlmModelFactory {
                 .modelName("qwen2.5-coder:7b")
                 .temperature(temperature)
                 .timeout(timeout)
+                .listeners(listeners())
                 .build();
     }
 }
