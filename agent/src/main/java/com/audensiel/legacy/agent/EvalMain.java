@@ -31,6 +31,18 @@ public class EvalMain {
     ) {}
 
     public static void main(String[] args) throws IOException {
+        // Le recorder doit démarrer AVANT la construction des agents : LlmModelFactory
+        // attache son ChatModelListener au moment où le modèle est construit, en lisant le
+        // recorder actif. Démarré après, le listener serait celui du recorder inerte et
+        // aucun span « llm » ne serait jamais enregistré en mode eval.
+        //
+        // start() et non get() : EvalMain est aussi un point d'entrée à part entière
+        // (java -cp app.jar ...EvalMain), auquel cas Main n'a jamais démarré le recorder et
+        // FLIGHTREC_ENABLED=true resterait sans effet. start() est idempotent, donc l'appel
+        // depuis Main (mode « eval ») réutilise le recorder déjà actif.
+        SpanRecorder recorder = SpanRecorder.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(recorder::close, "flightrec-eval-shutdown"));
+
         String ollamaUrl = System.getenv().getOrDefault("OLLAMA_BASE_URL", "http://localhost:11434");
         Path datasetPath = Path.of(args.length >= 1 ? args[0] : DEFAULT_DATASET_PATH);
 
@@ -48,17 +60,10 @@ public class EvalMain {
 
         List<double[]> f1Scores = new ArrayList<>();
 
-        // Racine « eval ». DependencyMapperAgent et AgentEvaluator ne sont instanciés que
-        // dans ce mode : sans cette racine, ces deux agents n'apparaîtraient dans aucun span.
-        //
-        // start() et non get() : EvalMain est aussi un point d'entrée à part entière
-        // (java -cp app.jar ...EvalMain), auquel cas Main n'a jamais démarré le recorder et
-        // FLIGHTREC_ENABLED=true resterait sans effet. start() est idempotent, donc l'appel
-        // depuis Main (mode « eval ») réutilise le recorder déjà actif.
-        SpanRecorder recorder = SpanRecorder.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(recorder::close, "flightrec-eval-shutdown"));
         RunMetrics metrics = new RunMetrics("golden-dataset", recorder);
 
+        // Racine « eval » : DependencyMapperAgent et AgentEvaluator ne sont instanciés que
+        // dans ce mode, sans elle ces deux agents n'apparaîtraient dans aucun span.
         try (var runSpan = recorder.span("run", "AgentEvaluator", "eval")) {
             runSpan.attribute("dataset", datasetPath.getFileName().toString())
                    .attribute("cases", cases.size());
