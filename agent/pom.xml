@@ -129,6 +129,17 @@
                 <version>3.5.4</version>
                 <configuration>
                     <excludedGroups>${excludedGroups}</excludedGroups>
+                    <!-- Les motifs par defaut de surefire ne couvrent que *Test / Test*.
+                         FlightRecBench est un banc de mesure, pas un test : sans cet ajout
+                         il n'etait jamais decouvert et « mvn test -Dgroups=bench »
+                         rapportait « Tests run: 0 » sans rien signaler. -->
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/Test*.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*TestCase.java</include>
+                        <include>**/*Bench.java</include>
+                    </includes>
                 </configuration>
             </plugin>
 
