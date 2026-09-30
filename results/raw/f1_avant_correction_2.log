@@ -1,0 +1,67 @@
+########## PROVENANCE (en-tete) ##########
+etiquette      : avant_correction
+passage        : 2 / 3
+date_utc       : 2026-09-30T17:59:09Z
+commit         : 9b98b6be26acad26b4083fb5f45189facf9465a8
+dataset        : golden_dataset_3cases.json
+OLLAMA_BASE_URL: http://127.0.0.1:11434   (epingle : 'localhost' serait ambigu IPv4/IPv6)
+FLIGHTREC_ENABLED: false
+--- GET http://127.0.0.1:11434/api/tags ---
+{"models":[{"name":"qwen2.5-coder:7b","model":"qwen2.5-coder:7b","modified_at":"2026-06-06T19:01:56.9643135+02:00","size":4683087561,"digest":"dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364","details":{"parent_model":"","format":"gguf","family":"qwen2","families":["qwen2"],"parameter_size":"7.6B","quantization_level":"Q4_K_M","context_length":32768,"embedding_length":3584},"capabilities":["completion","tools","insert"]}]}
+########## SORTIE EVALMAIN ##########
+═════════════════════════════════════════════════════════════════
+  ÉVALUATION F1 — Java Legacy Migration Agents
+  Dataset : C:\Users\trist\stephane\projets\java-legacy-agent\golden_dataset_3cases.json
+═════════════════════════════════════════════════════════════════
+  3 cas de test chargés
+  [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — bascule sur Ollama local (le code ne sort pas du périmètre)
+  [LLM] Ollama local CPU (sérialise — AGENT_WORKERS=1 conseillé)
+  [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — bascule sur Ollama local (le code ne sort pas du périmètre)
+  [LLM] Ollama local CPU (sérialise — AGENT_WORKERS=1 conseillé)
+
+━━━ cas1 : EJB ClientServiceBean ━━━
+19:59:10 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / dependency-map
+19:59:10 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / evaluate
+  DependencyMapper :                  Precision=0,571  Recall=0,571  F1=0,571  (TP=4 FP=3 FN=3)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+20:00:19 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,857  F1=0,923  (TP=6 FP=0 FN=1)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=0,500  F1=0,667  (TP=2 FP=0 FN=2)
+
+━━━ cas2 : Struts CommandeAction ━━━
+20:00:19 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / dependency-map
+20:00:19 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=0,875  F1=0,933  (TP=7 FP=0 FN=1)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+20:03:28 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,571  F1=0,727  (TP=4 FP=0 FN=3)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=0,750  F1=0,857  (TP=3 FP=0 FN=1)
+
+━━━ cas3 : Singleton ConfigurationManager ━━━
+20:03:28 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / dependency-map
+20:03:28 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / evaluate
+  DependencyMapper :                  Precision=0,000  Recall=0,000  F1=0,000  (TP=0 FP=1 FN=2)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+20:05:10 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,333  F1=0,500  (TP=2 FP=0 FN=4)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=1,000  F1=1,000  (TP=3 FP=0 FN=0)
+
+═════════════════════════════════════════════════════════════════
+  SCORES GLOBAUX
+─────────────────────────────────────────────────────────────────
+  DependencyMapper F1 moyen  : 0,502
+  Risques LLM F1 moyen       : 0,717
+  Responsabilités F1 moyen   : 0,841
+─────────────────────────────────────────────────────────────────
+  ★ F1 GLOBAL (3 cas)        : 0,687
+═════════════════════════════════════════════════════════════════
+
+########## PROVENANCE (pied) ##########
+fin_utc        : 2026-09-30T18:05:10Z
+--- GET http://127.0.0.1:11434/api/ps  (instance visee) ---
+{"models":[{"name":"qwen2.5-coder:7b","model":"qwen2.5-coder:7b","size":5062566870,"digest":"dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364","details":{"parent_model":"","format":"gguf","family":"qwen2","families":["qwen2"],"parameter_size":"7.6B","quantization_level":"Q4_K_M"},"expires_at":"2026-09-30T20:10:10.343615+02:00","size_vram":0,"context_length":4096}]}
+--- GET http://[::1]:11434/api/ps  (autre instance, pour comparaison) ---
+{"models":[]}

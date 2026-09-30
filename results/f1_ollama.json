@@ -1,0 +1,680 @@
+{
+  "genere_le": "2026-09-30T18:32:42Z",
+  "dataset": "golden_dataset_3cases.json",
+  "backend": {
+    "type": "ollama",
+    "endpoint": "http://127.0.0.1:11434",
+    "instance": "Ollama natif Windows",
+    "avertissement": "Deux serveurs Ollama ecoutent sur 11434 : le natif Windows sur 127.0.0.1 (1 modele) et un conteneur Docker sur [::1] via le relais WSL (3 modeles). 'localhost' est donc ambigu selon la resolution IPv4/IPv6 — l'URL est epinglee, et chaque log brut porte la verification de l'instance ayant repondu.",
+    "modele": "qwen2.5-coder:7b",
+    "empreinte": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+    "temperature": 0.1,
+    "temperature_source": "JavaDocumentationAgent.java — analyzeJavaClass passe par coderModel (0.1)",
+    "flightrec_enabled": false
+  },
+  "provenance_conforme": true,
+  "series": [
+    {
+      "etiquette": "avant_correction",
+      "commit": "9b98b6be26acad26b4083fb5f45189facf9465a8",
+      "passages": [
+        {
+          "sortie_brute": "results/raw/f1_avant_correction_1.log",
+          "date_utc": "2026-09-30T17:52:09Z",
+          "commit": "9b98b6be26acad26b4083fb5f45189facf9465a8",
+          "backend_verifie": {
+            "modeles_servis_par_la_cible": 1,
+            "instance": "Ollama natif Windows",
+            "empreinte_modele": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+          },
+          "f1_global": 0.737,
+          "composantes_moyennes": {
+            "dependency_mapper": 0.502,
+            "risques": 0.709,
+            "responsabilites": 1.0
+          },
+          "par_cas": [
+            {
+              "cas": "cas1",
+              "dependency_mapper": {
+                "precision": 0.571,
+                "recall": 0.571,
+                "f1": 0.571,
+                "tp": 4,
+                "fp": 3,
+                "fn": 3
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.429,
+                "f1": 0.6,
+                "tp": 3,
+                "fp": 0,
+                "fn": 4
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas2",
+              "dependency_mapper": {
+                "precision": 1.0,
+                "recall": 0.875,
+                "f1": 0.933,
+                "tp": 7,
+                "fp": 0,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.571,
+                "f1": 0.727,
+                "tp": 4,
+                "fp": 0,
+                "fn": 3
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas3",
+              "dependency_mapper": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "tp": 0,
+                "fp": 1,
+                "fn": 2
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.667,
+                "f1": 0.8,
+                "tp": 4,
+                "fp": 0,
+                "fn": 2
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 3,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          ],
+          "n": 1
+        },
+        {
+          "sortie_brute": "results/raw/f1_avant_correction_2.log",
+          "date_utc": "2026-09-30T17:59:09Z",
+          "commit": "9b98b6be26acad26b4083fb5f45189facf9465a8",
+          "backend_verifie": {
+            "modeles_servis_par_la_cible": 1,
+            "instance": "Ollama natif Windows",
+            "empreinte_modele": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+          },
+          "f1_global": 0.687,
+          "composantes_moyennes": {
+            "dependency_mapper": 0.502,
+            "risques": 0.717,
+            "responsabilites": 0.841
+          },
+          "par_cas": [
+            {
+              "cas": "cas1",
+              "dependency_mapper": {
+                "precision": 0.571,
+                "recall": 0.571,
+                "f1": 0.571,
+                "tp": 4,
+                "fp": 3,
+                "fn": 3
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.857,
+                "f1": 0.923,
+                "tp": 6,
+                "fp": 0,
+                "fn": 1
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 0.5,
+                "f1": 0.667,
+                "tp": 2,
+                "fp": 0,
+                "fn": 2
+              }
+            },
+            {
+              "cas": "cas2",
+              "dependency_mapper": {
+                "precision": 1.0,
+                "recall": 0.875,
+                "f1": 0.933,
+                "tp": 7,
+                "fp": 0,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.571,
+                "f1": 0.727,
+                "tp": 4,
+                "fp": 0,
+                "fn": 3
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 0.75,
+                "f1": 0.857,
+                "tp": 3,
+                "fp": 0,
+                "fn": 1
+              }
+            },
+            {
+              "cas": "cas3",
+              "dependency_mapper": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "tp": 0,
+                "fp": 1,
+                "fn": 2
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.333,
+                "f1": 0.5,
+                "tp": 2,
+                "fp": 0,
+                "fn": 4
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 3,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          ],
+          "n": 2
+        },
+        {
+          "sortie_brute": "results/raw/f1_avant_correction_3.log",
+          "date_utc": "2026-09-30T18:05:10Z",
+          "commit": "9b98b6be26acad26b4083fb5f45189facf9465a8",
+          "backend_verifie": {
+            "modeles_servis_par_la_cible": 1,
+            "instance": "Ollama natif Windows",
+            "empreinte_modele": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+          },
+          "f1_global": 0.739,
+          "composantes_moyennes": {
+            "dependency_mapper": 0.502,
+            "risques": 0.717,
+            "responsabilites": 1.0
+          },
+          "par_cas": [
+            {
+              "cas": "cas1",
+              "dependency_mapper": {
+                "precision": 0.571,
+                "recall": 0.571,
+                "f1": 0.571,
+                "tp": 4,
+                "fp": 3,
+                "fn": 3
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.857,
+                "f1": 0.923,
+                "tp": 6,
+                "fp": 0,
+                "fn": 1
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas2",
+              "dependency_mapper": {
+                "precision": 1.0,
+                "recall": 0.875,
+                "f1": 0.933,
+                "tp": 7,
+                "fp": 0,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.571,
+                "f1": 0.727,
+                "tp": 4,
+                "fp": 0,
+                "fn": 3
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas3",
+              "dependency_mapper": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "tp": 0,
+                "fp": 1,
+                "fn": 2
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.333,
+                "f1": 0.5,
+                "tp": 2,
+                "fp": 0,
+                "fn": 4
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 3,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          ],
+          "n": 3
+        }
+      ]
+    },
+    {
+      "etiquette": "apres_correction_B",
+      "commit": "901ba03394d101fca82dbfdcd6d1c5c216a7c173",
+      "passages": [
+        {
+          "sortie_brute": "results/raw/f1_apres_correction_B_1.log",
+          "date_utc": "2026-09-30T18:14:38Z",
+          "commit": "901ba03394d101fca82dbfdcd6d1c5c216a7c173",
+          "backend_verifie": {
+            "modeles_servis_par_la_cible": 1,
+            "instance": "Ollama natif Windows",
+            "empreinte_modele": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+          },
+          "f1_global": 0.808,
+          "composantes_moyennes": {
+            "dependency_mapper": 0.716,
+            "risques": 0.709,
+            "responsabilites": 1.0
+          },
+          "par_cas": [
+            {
+              "cas": "cas1",
+              "dependency_mapper": {
+                "precision": 0.714,
+                "recall": 0.714,
+                "f1": 0.714,
+                "tp": 5,
+                "fp": 2,
+                "fn": 2
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.429,
+                "f1": 0.6,
+                "tp": 3,
+                "fp": 0,
+                "fn": 4
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas2",
+              "dependency_mapper": {
+                "precision": 1.0,
+                "recall": 0.875,
+                "f1": 0.933,
+                "tp": 7,
+                "fp": 0,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.571,
+                "f1": 0.727,
+                "tp": 4,
+                "fp": 0,
+                "fn": 3
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas3",
+              "dependency_mapper": {
+                "precision": 0.5,
+                "recall": 0.5,
+                "f1": 0.5,
+                "tp": 1,
+                "fp": 1,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.667,
+                "f1": 0.8,
+                "tp": 4,
+                "fp": 0,
+                "fn": 2
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 3,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          ],
+          "n": 1
+        },
+        {
+          "sortie_brute": "results/raw/f1_apres_correction_B_2.log",
+          "date_utc": "2026-09-30T18:21:02Z",
+          "commit": "901ba03394d101fca82dbfdcd6d1c5c216a7c173",
+          "backend_verifie": {
+            "modeles_servis_par_la_cible": 1,
+            "instance": "Ollama natif Windows",
+            "empreinte_modele": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+          },
+          "f1_global": 0.763,
+          "composantes_moyennes": {
+            "dependency_mapper": 0.716,
+            "risques": 0.687,
+            "responsabilites": 0.886
+          },
+          "par_cas": [
+            {
+              "cas": "cas1",
+              "dependency_mapper": {
+                "precision": 0.714,
+                "recall": 0.714,
+                "f1": 0.714,
+                "tp": 5,
+                "fp": 2,
+                "fn": 2
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.714,
+                "f1": 0.833,
+                "tp": 5,
+                "fp": 0,
+                "fn": 2
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas2",
+              "dependency_mapper": {
+                "precision": 1.0,
+                "recall": 0.875,
+                "f1": 0.933,
+                "tp": 7,
+                "fp": 0,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.571,
+                "f1": 0.727,
+                "tp": 4,
+                "fp": 0,
+                "fn": 3
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 0.75,
+                "f1": 0.857,
+                "tp": 3,
+                "fp": 0,
+                "fn": 1
+              }
+            },
+            {
+              "cas": "cas3",
+              "dependency_mapper": {
+                "precision": 0.5,
+                "recall": 0.5,
+                "f1": 0.5,
+                "tp": 1,
+                "fp": 1,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.333,
+                "f1": 0.5,
+                "tp": 2,
+                "fp": 0,
+                "fn": 4
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 0.667,
+                "f1": 0.8,
+                "tp": 2,
+                "fp": 0,
+                "fn": 1
+              }
+            }
+          ],
+          "n": 2
+        },
+        {
+          "sortie_brute": "results/raw/f1_apres_correction_B_3.log",
+          "date_utc": "2026-09-30T18:26:11Z",
+          "commit": "901ba03394d101fca82dbfdcd6d1c5c216a7c173",
+          "backend_verifie": {
+            "modeles_servis_par_la_cible": 1,
+            "instance": "Ollama natif Windows",
+            "empreinte_modele": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+          },
+          "f1_global": 0.844,
+          "composantes_moyennes": {
+            "dependency_mapper": 0.716,
+            "risques": 0.817,
+            "responsabilites": 1.0
+          },
+          "par_cas": [
+            {
+              "cas": "cas1",
+              "dependency_mapper": {
+                "precision": 0.714,
+                "recall": 0.714,
+                "f1": 0.714,
+                "tp": 5,
+                "fp": 2,
+                "fn": 2
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.857,
+                "f1": 0.923,
+                "tp": 6,
+                "fp": 0,
+                "fn": 1
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas2",
+              "dependency_mapper": {
+                "precision": 1.0,
+                "recall": 0.875,
+                "f1": 0.933,
+                "tp": 7,
+                "fp": 0,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.571,
+                "f1": 0.727,
+                "tp": 4,
+                "fp": 0,
+                "fn": 3
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 4,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            {
+              "cas": "cas3",
+              "dependency_mapper": {
+                "precision": 0.5,
+                "recall": 0.5,
+                "f1": 0.5,
+                "tp": 1,
+                "fp": 1,
+                "fn": 1
+              },
+              "risques": {
+                "precision": 1.0,
+                "recall": 0.667,
+                "f1": 0.8,
+                "tp": 4,
+                "fp": 0,
+                "fn": 2
+              },
+              "responsabilites": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "tp": 3,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          ],
+          "n": 3
+        }
+      ]
+    }
+  ],
+  "synthese": {
+    "par_serie": {
+      "avant_correction": {
+        "composante_deterministe": {
+          "valeurs": [
+            0.502,
+            0.502,
+            0.502
+          ],
+          "constante": true,
+          "valeur": 0.502
+        },
+        "f1_global": {
+          "mediane": 0.737,
+          "minimum": 0.687,
+          "maximum": 0.739,
+          "valeurs": [
+            0.737,
+            0.687,
+            0.739
+          ]
+        }
+      },
+      "apres_correction_B": {
+        "composante_deterministe": {
+          "valeurs": [
+            0.716,
+            0.716,
+            0.716
+          ],
+          "constante": true,
+          "valeur": 0.716
+        },
+        "f1_global": {
+          "mediane": 0.808,
+          "minimum": 0.763,
+          "maximum": 0.844,
+          "valeurs": [
+            0.808,
+            0.763,
+            0.844
+          ]
+        }
+      }
+    },
+    "lecture": {
+      "composante_deterministe": "DependencyMapper — regex, sans LLM. Exacte et sans derive : c'est LA que se lit l'effet de la correction FIELD_PATTERN. Une variation entre passages signalerait un probleme, pas du bruit.",
+      "f1_global": "Moyenne des trois composantes, dont deux passent par le LLM. Son ecart entre series inclut EN PLUS la derive LLM : il n'est donc PAS attribuable a la seule correction. Citer la mediane avec son etendue, jamais une valeur isolee."
+    }
+  }
+}
