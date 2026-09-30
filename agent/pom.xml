@@ -20,8 +20,10 @@
 
         <!-- Groupes JUnit exclus du build par défaut. Passé par indirection de propriété
              (et non codé en dur dans la configuration du plugin) pour rester surchargeable
-             en ligne de commande : mvn test -Dgroups=integration -DexcludedGroups= -->
-        <excludedGroups>integration</excludedGroups>
+             en ligne de commande : mvn test -Dgroups=integration -DexcludedGroups=
+             - integration : aller-retour réel contre la base legacyrec
+             - bench       : microbenchmark du recorder, plusieurs minutes -->
+        <excludedGroups>integration,bench</excludedGroups>
     </properties>
 
     <dependencies>

@@ -7,7 +7,10 @@
 -- racine « report ». Ce n'est pas une anomalie, c'est la topologie réelle —
 -- la récursion est donc amorcée sur toutes les racines du run, pas sur une seule.
 
-WITH dernier_run AS (
+-- RECURSIVE porte sur la liste WITH entiere, pas sur un CTE en particulier :
+-- dernier_run n'est pas recursif, mais le mot-cle doit figurer ici pour que
+-- « arbre » puisse se referencer lui-meme.
+WITH RECURSIVE dernier_run AS (
     SELECT run_id
     FROM agent_span
     WHERE project = 'java-legacy-agent'
