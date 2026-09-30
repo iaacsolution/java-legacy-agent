@@ -115,6 +115,12 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD manquant, voir .env.example}
       - GF_USERS_ALLOW_SIGN_UP=false
+      # Consommées par monitoring/grafana/datasources/flightrec-postgres.yml.
+      # Grafana n'interpole dans ses fichiers de provisionnement que les variables
+      # présentes dans l'environnement de SON conteneur — sans ces deux lignes, la
+      # source de données du flight recorder serait provisionnée sans identifiants.
+      - FLIGHTREC_USER=${FLIGHTREC_USER:-postgres}
+      - FLIGHTREC_PASSWORD=${FLIGHTREC_PASSWORD:-flightrec-dev-local}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
@@ -184,15 +190,27 @@ services:
   # écoute donc sur 5433 côté host pour ne pas entrer en conflit avec elle.
   #   docker compose --profile flightrec up -d timescaledb
   #   FLIGHTREC_URL=jdbc:postgresql://localhost:5433/legacyrec
+  #
+  # ⚠️ ARRÊT de ce service : « docker compose rm -sf timescaledb ».
+  # Ne JAMAIS arrêter ce profil avec un « down » portant le drapeau de suppression
+  # des volumes : ce drapeau ne se limite pas au profil visé, il détruit les
+  # volumes de TOUS les services du projet (grafana_data, phoenix_data,
+  # airflow_data, webui_data…). C'est arrivé une fois, les données étaient
+  # irrécupérables. Un hook Claude Code refuse désormais cette commande
+  # (.claude/hooks/block-docker-destructive.py).
   timescaledb:
     image: timescale/timescaledb-ha:pg18
     profiles: [flightrec]
     environment:
       - POSTGRES_DB=legacyrec
       - POSTGRES_USER=postgres
+      # Valeur par défaut et non ${VAR:?...} : la forme « variable requise » fait
+      # échouer l'interpolation de TOUT le fichier, donc toutes les commandes
+      # docker compose du projet — même celles qui ne touchent pas ce service, et
+      # même quand le profil flightrec n'est pas activé.
       # Base de développement local, jamais exposée hors de la machine (bind 127.0.0.1).
-      # Renseigner FLIGHTREC_PASSWORD dans .env pour lui donner une valeur.
-      - POSTGRES_PASSWORD=${FLIGHTREC_PASSWORD:?FLIGHTREC_PASSWORD manquant, voir .env.example}
+      # Renseigner FLIGHTREC_PASSWORD dans .env pour une vraie valeur.
+      - POSTGRES_PASSWORD=${FLIGHTREC_PASSWORD:-flightrec-dev-local}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:

@@ -10,6 +10,18 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/block-docker-destructive.py",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

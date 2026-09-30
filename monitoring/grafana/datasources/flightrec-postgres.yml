@@ -1,0 +1,29 @@
+# Source de données PostgreSQL/TimescaleDB du flight recorder.
+#
+# Versionnée en fichier — et non créée à la main dans l'UI Grafana — pour qu'une
+# perte du volume grafana_data ne l'efface plus. Une source créée dans l'UI ne
+# vit que dans la base interne de Grafana ; celle-ci est recréée à chaque
+# démarrage depuis ce fichier.
+#
+# Le mot de passe vient de l'environnement du conteneur Grafana : aucun secret
+# n'est écrit ici. Définir FLIGHTREC_PASSWORD dans .env.
+
+apiVersion: 1
+
+datasources:
+  - name: Flight recorder (legacyrec)
+    uid: flightrec-legacyrec
+    type: postgres
+    access: proxy
+    # Conteneur local existant. Pour le profil compose, utiliser timescaledb:5432.
+    url: host.docker.internal:5432
+    database: legacyrec
+    user: ${FLIGHTREC_USER:-postgres}
+    secureJsonData:
+      password: ${FLIGHTREC_PASSWORD}
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1800
+      # Active les fonctions d'agrégat TimescaleDB dans l'éditeur de requêtes.
+      timescaledb: true
+    editable: false

@@ -1,0 +1,154 @@
+{
+  "uid": "flightrec-spans",
+  "title": "Flight recorder — spans du pipeline",
+  "description": "P95 par agent, coût par analyse et taux d'erreur, depuis l'hypertable agent_span. Versionné en fichier : une perte du volume grafana_data ne l'efface plus.",
+  "tags": ["flight-recorder", "java-legacy-agent"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "project",
+        "label": "Projet",
+        "type": "constant",
+        "query": "java-legacy-agent",
+        "current": { "text": "java-legacy-agent", "value": "java-legacy-agent" },
+        "hide": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "P95 de durée par agent",
+      "description": "Les spans « llm » sont exclus : leur durée est dominée par le modèle, pas par l'agent.",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket('$__interval', time) AS time,\n       agent AS metric,\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95\nFROM agent_span\nWHERE $__timeFilter(time)\n  AND project = '$project'\n  AND span_kind = 'agent'\nGROUP BY 1, 2\nORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Taux d'erreur par agent (%)",
+      "description": "status <> 'ok' — couvre error et timeout. S'appuie sur l'index partiel agent_span_errors_idx.",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket('$__interval', time) AS time,\n       agent AS metric,\n       100.0 * count(*) FILTER (WHERE status <> 'ok') / NULLIF(count(*), 0) AS taux_erreur\nFROM agent_span\nWHERE $__timeFilter(time)\n  AND project = '$project'\nGROUP BY 1, 2\nORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Coût estimé par analyse (USD)",
+      "description": "ESTIMATION à tarif catalogue (ModelPricing.java, table illustrative), jamais une dépense constatée. Les modèles locaux y figurent à 0.",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD", "decimals": 4 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT avg(cout) AS \"Coût moyen par run\"\nFROM (\n  SELECT run_id, sum(cost_usd) AS cout\n  FROM agent_span\n  WHERE $__timeFilter(time) AND project = '$project'\n  GROUP BY run_id\n) parRun"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Jetons par analyse",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT avg(entree) AS \"Entrée\", avg(sortie) AS \"Sortie\"\nFROM (\n  SELECT run_id, sum(tokens_in) AS entree, sum(tokens_out) AS sortie\n  FROM agent_span\n  WHERE $__timeFilter(time) AND project = '$project'\n  GROUP BY run_id\n) parRun"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Analyses (runs)",
+      "description": "Une analyse en deux process produit deux racines sous un même run_id : on compte les run_id, pas les racines.",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(DISTINCT run_id) AS \"Analyses\"\nFROM agent_span\nWHERE $__timeFilter(time) AND project = '$project'"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Dernier run — arbre run → agents → appels LLM",
+      "description": "Même requête que monitoring/flightrec/replay_last_run.sql : récursion amorcée sur TOUTES les racines du run.",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH RECURSIVE dernier_run AS (\n    SELECT run_id FROM agent_span\n    WHERE project = '$project' ORDER BY time DESC LIMIT 1\n),\narbre AS (\n    SELECT s.span_id, s.parent_id, s.time, s.agent, s.span_kind, s.name,\n           s.status, s.duration_ms, s.tokens_in, s.tokens_out, s.cost_usd,\n           0 AS profondeur, s.name AS racine, ARRAY[s.time, s.time] AS tri\n    FROM agent_span s JOIN dernier_run d USING (run_id)\n    WHERE s.parent_id IS NULL\n  UNION ALL\n    SELECT e.span_id, e.parent_id, e.time, e.agent, e.span_kind, e.name,\n           e.status, e.duration_ms, e.tokens_in, e.tokens_out, e.cost_usd,\n           a.profondeur + 1, a.racine, a.tri || e.time\n    FROM agent_span e\n    JOIN arbre a ON e.parent_id = a.span_id\n    JOIN dernier_run d ON d.run_id = e.run_id\n)\nSELECT racine AS \"Phase\",\n       repeat('    ', profondeur) || span_kind || ' · ' || name AS \"Arbre\",\n       agent AS \"Agent\",\n       status AS \"Statut\",\n       round(duration_ms::numeric, 1) AS \"Durée (ms)\",\n       NULLIF(tokens_in, 0) AS \"Jetons entrée\",\n       NULLIF(tokens_out, 0) AS \"Jetons sortie\"\nFROM arbre ORDER BY tri, time"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Durée des appels LLM (P50 / P95)",
+      "datasource": { "type": "postgres", "uid": "flightrec-legacyrec" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 27 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket('$__interval', time) AS time,\n       percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_ms) AS \"P50\",\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS \"P95\"\nFROM agent_span\nWHERE $__timeFilter(time) AND project = '$project' AND span_kind = 'llm'\nGROUP BY 1 ORDER BY 1"
+        }
+      ]
+    }
+  ]
+}
