@@ -20,15 +20,29 @@ public class DependencyMapperAgent {
     private static final Pattern IMPORT_PATTERN    = Pattern.compile("^import\\s+([\\w.]+);", Pattern.MULTILINE);
     private static final Pattern EXTENDS_PATTERN   = Pattern.compile("class\\s+\\w+\\s+extends\\s+(\\w+)");
     private static final Pattern IMPLEMENTS_PATTERN = Pattern.compile("implements\\s+([\\w,\\s]+)\\{");
-    // TODO(bug connu, non corrigé volontairement) : sur "private static final Type name",
-    // ce pattern capture "static" comme si c'était le type, pas "Type" (ex: "private
-    // static final Logger log" → capture "static", jamais "Logger"). Vérifié
-    // empiriquement sur golden_dataset.json cas1 : GT contient "Logger" que
-    // l'extraction ne trouve jamais, ce déficit de recall fait déjà partie du F1
-    // baseline (0.757, voir README.md "Golden dataset"). Ne pas corriger sans
-    // rouvrir explicitement le test de non-régression F1 — un fix ici changerait
-    // le F1 mesuré. Correctif prévu dans un commit séparé.
-    private static final Pattern FIELD_PATTERN     = Pattern.compile("private\\s+(\\w+)\\s+\\w+");
+    // Corrigé (le TODO qui était ici est levé) : l'ancien "private\s+(\w+)\s+\w+"
+    // capturait le premier mot après "private", c'est-à-dire un MODIFICATEUR dès qu'il y
+    // en avait un — "private static final Logger log" donnait "static", jamais "Logger".
+    //
+    // Trois pièces, chacune pour une raison :
+    //   1. les modificateurs sont sautés explicitement, au lieu d'être avalés par (\w+) ;
+    //   2. les génériques sont tolérés, sinon "Map<String,String> config" ne matcherait
+    //      pas — c'est ce cas qui mettait le cas 3 du golden dataset à 0,000 ;
+    //   3. le [;=] final exige une déclaration de champ : sans lui,
+    //      "private ConfigurationManager() {}" serait pris pour un champ.
+    //
+    // Effet mesuré sur golden_dataset_3cases.json (composante déterministe, sans LLM) :
+    // 0,571 / 0,933 / 0,000 → moyenne 0,502   devient   0,714 / 0,933 / 0,500 → 0,716.
+    // Le F1 n'est donc PLUS directement comparable au 0,757 historique, qui reposait
+    // sur ce bug. Voir README.md et results/f1_ollama.json.
+    //
+    // Reste hors de portée, volontairement (dettes documentées) : "HashMap" n'apparaît
+    // que dans "new HashMap<>()" — aucun motif ne regarde les instanciations ; et une
+    // classe peut encore se déclarer comme dépendante d'elle-même.
+    private static final Pattern FIELD_PATTERN     = Pattern.compile(
+            "private\\s+(?:(?:static|final|transient|volatile)\\s+)*"  // modificateurs sautés
+          + "([A-Za-z_]\\w*)(?:\\s*<[^>]*>)?"                          // le type, génériques tolérés
+          + "\\s+\\w+\\s*[;=]");                                       // nom puis ; ou = → pas un constructeur
 
     public ClassDependencies analyze(FileScannerAgent.JavaFile file) {
         String code = file.content();

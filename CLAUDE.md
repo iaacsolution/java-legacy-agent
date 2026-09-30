@@ -50,10 +50,18 @@ dans ce dépôt.
   - F1 **0.802** sur les 5 cas de `golden_dataset.json`, **0.757** sur les 3 cas historiques
     (valeur du CV). Les deux ne sont pas comparables entre elles.
   - **Le F1 global n'est pas reproductible à l'identique.** Seule la composante
-    `DependencyMapper` (regex, sans LLM) l'est, au bit près : 0.571 / 0.933 / 0.000 sur les
-    3 cas, moyenne 0.502. Les composantes LLM (risques, responsabilités) dérivent d'un run à
-    l'autre même à température 0.1, et dépendent du backend actif. Toujours préciser le
-    backend en rapportant un F1.
+    `DependencyMapper` (regex, sans LLM) l'est, au bit près. Les composantes LLM (risques,
+    responsabilités) dérivent d'un run à l'autre même à température 0.1, et dépendent du
+    backend actif. Toujours préciser le backend en rapportant un F1.
+  - **`FIELD_PATTERN` a été corrigé** : la composante déterministe est passée de
+    0.571/0.933/0.000 (moyenne **0.502**) à 0.714/0.933/0.500 (moyenne **0.716**) sur les
+    3 cas historiques. **Le F1 n'est donc plus comparable au 0.757**, qui reposait sur ce
+    bug. Mesures et sorties brutes : `results/f1_ollama.json`, `results/raw/`.
+  - **Deux serveurs Ollama peuvent écouter sur 11434** — le natif Windows sur `127.0.0.1`
+    (1 modèle) et le conteneur Docker sur `[::1]` via le relais WSL (3 modèles). `localhost`
+    est donc ambigu selon la résolution IPv4/IPv6. Épingler
+    `OLLAMA_BASE_URL=http://127.0.0.1:11434` et vérifier dans chaque log quelle instance a
+    répondu (`/api/tags` en tête, `/api/ps` en pied) — voir `scripts/f1_passages.sh`.
 - **JavaParser n'est pas thread-safe avec AGENT_WORKERS>1.** Le garde-fou n'est pas un
   verrou : c'est `AstParserAgent.newParser()`, qui crée une instance neuve par appel et
   supprime l'état partagé (commit `4128e54`, après un bug où une instance partagée levait des

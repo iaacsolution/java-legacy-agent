@@ -115,13 +115,29 @@ appel à l'autre, même à température 0.1 — observé concrètement lors de c
 de vérité. Traiter "0.757" ou "0.802" comme une valeur figée serait trompeur ; ce sont des points
 de mesure, pas des constantes.
 
-**Bug connu, non corrigé volontairement — `DependencyMapperAgent.FIELD_PATTERN`.** Sur un champ
-`private static final Type name`, le pattern capture `"static"` comme si c'était le type, jamais
-`Type`. Concrètement : `Logger` (cas1) et `Map`/`HashMap` (cas3) ne sont jamais extraits, malgré
-leur présence dans le code — TODO documenté au-dessus de `FIELD_PATTERN` dans
-`DependencyMapperAgent.java`. Déjà présent dans le F1 = 0.757 historique, pas une régression
-introduite ici. Correctif prévu dans un commit séparé, avec re-mesure du F1 après coup — le
-corriger silencieusement dans ce commit aurait invalidé le test de non-régression ci-dessus.
+**`DependencyMapperAgent.FIELD_PATTERN` — bug CORRIGÉ (commit dédié).** Sur un champ
+`private static final Type name`, l'ancien pattern capturait `"static"` comme si c'était le type,
+jamais `Type` : `Logger` (cas1) et `Map` (cas3) n'étaient jamais extraits malgré leur présence
+dans le code. Le pattern saute désormais les modificateurs, tolère les génériques, et exige
+`;` ou `=` derrière le nom pour ne pas confondre un constructeur avec un champ.
+
+**Conséquence directe : le F1 n'est plus comparable au 0.757 historique**, qui reposait sur ce
+bug. Effet mesuré sur la composante déterministe (regex, sans LLM, donc exacte) des 3 cas
+historiques :
+
+| | cas1 | cas2 | cas3 | moyenne |
+|---|---|---|---|---|
+| Avant correction | 0.571 | 0.933 | **0.000** | **0.502** |
+| Après correction | 0.714 | 0.933 | **0.500** | **0.716** |
+
+Le `0.000` du cas 3 s'expliquait par un cumul : ce cas est le seul **sans aucun `import`**, donc
+le type de champ y était l'unique voie vers `Map` — précisément celle que le bug fermait.
+Mesures complètes et sorties brutes : `results/f1_ollama.json` et `results/raw/`.
+
+**Deux limites subsistent, volontairement non corrigées** (à valider sur les cas 4 et 5, qui
+n'ont pas servi à concevoir la correction) : `HashMap` n'apparaît que dans `new HashMap<>()` et
+aucun motif ne regarde les instanciations ; et une classe peut encore apparaître comme
+dépendante d'elle-même (`ConfigurationManager`), ce qui plafonne le cas 3 à 0.500.
 
 **Taille du dataset — 5 cas, volontairement limité.** Représentatif du style de code legacy visé
 (EJB, Struts, Singleton, DAO JDBC brut, exception avalée), mais reste un échantillon réduit pour
