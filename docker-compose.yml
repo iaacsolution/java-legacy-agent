@@ -178,6 +178,30 @@ services:
     restart: unless-stopped
     networks: [orchestration]
 
+  # ── Flight recorder — TimescaleDB (profil "flightrec", ne démarre pas par défaut) ──
+  # Sert à rendre le flight recorder reproductible pour quelqu'un qui clone le dépôt.
+  # Stéphane a déjà une base locale (conteneur timescale-course, port 5432) : ce service
+  # écoute donc sur 5433 côté host pour ne pas entrer en conflit avec elle.
+  #   docker compose --profile flightrec up -d timescaledb
+  #   FLIGHTREC_URL=jdbc:postgresql://localhost:5433/legacyrec
+  timescaledb:
+    image: timescale/timescaledb-ha:pg18
+    profiles: [flightrec]
+    environment:
+      - POSTGRES_DB=legacyrec
+      - POSTGRES_USER=postgres
+      # Base de développement local, jamais exposée hors de la machine (bind 127.0.0.1).
+      # Renseigner FLIGHTREC_PASSWORD dans .env pour lui donner une valeur.
+      - POSTGRES_PASSWORD=${FLIGHTREC_PASSWORD:?FLIGHTREC_PASSWORD manquant, voir .env.example}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - flightrec_data:/home/postgres/pgdata
+      # Rejoué automatiquement à la première initialisation du volume.
+      - ./monitoring/flightrec/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    restart: unless-stopped
+    networks: [observability]
+
 networks:
   # Segmentation par tier plutôt qu'un unique bridge plat où tout parle à
   # tout sans auth. Chaque service ne rejoint que les réseaux dont il a
@@ -202,3 +226,5 @@ volumes:
   # Frontière de confiance entre java-analyzer et java-reporter : seuls les
   # specs déjà produites transitent ici, jamais les fichiers .java d'origine.
   handoff_data:
+  # Spans du flight recorder (profil flightrec uniquement).
+  flightrec_data:

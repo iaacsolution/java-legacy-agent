@@ -135,10 +135,93 @@ ici faute de temps dans cette session.
 |-------|------------|
 | AST parsing | JavaParser (Java/Maven) |
 | LLM inference | Qwen2.5-Coder-7B via vLLM (GPU, continuous batching), Claude Haiku or Ollama as fallback |
-| Orchestration | Python agents |
+| Orchestration | Java (`LegacyMigrationOrchestrator`) + LangChain4j `AiServices` |
 | Observability | Prometheus · Grafana |
 | Tracing | Phoenix OTEL |
+| Flight recorder | TimescaleDB (spans run/agent/llm) — désactivé par défaut |
 | Deployment | Docker Compose (8 services) |
+
+## Flight recorder (spans → TimescaleDB)
+
+Enregistre chaque étape du pipeline comme un span dans l'hypertable `agent_span`,
+pour répondre dans Grafana à des questions que `RunMetrics`, Prometheus et Phoenix
+ne couvrent pas sur l'historique : P95 par agent, coût par analyse, taux d'erreur.
+
+Trois natures de span : `run` (une analyse complète), `agent` (une étape d'agent),
+`llm` (un appel au modèle).
+
+**Désactivé par défaut.** Sans `FLIGHTREC_ENABLED=true`, aucun thread, aucune
+connexion, aucun effet mesurable sur le pipeline.
+
+### Base cible
+
+> ⚠️ La base à utiliser est **`legacyrec`**. Ne jamais pointer le recorder sur
+> `flightrec`, qui contient les données du cours TimescaleDB. Les deux bases
+> cohabitent dans le même conteneur `timescale-course` — seul le nom de base les
+> sépare, c'est le seul garde-fou.
+
+| Cas | `FLIGHTREC_URL` |
+|-----|-----------------|
+| Base locale existante (conteneur `timescale-course`) | `jdbc:postgresql://localhost:5432/legacyrec` |
+| Profil Docker Compose (voir ci-dessous) | `jdbc:postgresql://localhost:5433/legacyrec` |
+
+Le mot de passe n'a **aucune valeur par défaut en dur** : renseigner
+`FLIGHTREC_PASSWORD` (ou, à défaut, la variable standard `PGPASSWORD`).
+
+### Initialiser le schéma
+
+Sur la base locale déjà créée :
+
+```powershell
+psql "postgresql://postgres@localhost:5432/legacyrec" -v ON_ERROR_STOP=1 -f monitoring/flightrec/init.sql
+
+# si psql n'est pas installé sur l'hôte
+Get-Content monitoring/flightrec/init.sql | docker exec -i timescale-course psql -U postgres -d legacyrec -v ON_ERROR_STOP=1
+```
+
+Le script est idempotent et peut être rejoué. Il exige **PostgreSQL 18+** :
+`uuid_extract_timestamp()`, utilisée par la contrainte `CHECK` de la table,
+n'existe pas avant — le script s'arrête avec un message explicite sinon.
+
+Alternative conteneurisée, qui applique `init.sql` toute seule au premier démarrage
+et n'interfère pas avec la base locale :
+
+```bash
+docker compose --profile flightrec up -d timescaledb   # port hôte 5433
+```
+
+### Lancer le pipeline avec le recorder
+
+```bash
+FLIGHTREC_ENABLED=true \
+FLIGHTREC_URL=jdbc:postgresql://localhost:5432/legacyrec \
+FLIGHTREC_PASSWORD=... \
+java -jar agent/target/java-legacy-agent-1.0.0.jar demo-project migration-output
+```
+
+Les phases `analyze` et `report` sont deux process JVM distincts : partager
+`FLIGHTREC_RUN_ID` entre les deux les regroupe sous un même `run_id`. Un run porte
+alors **deux racines** (`analyze` et `report`), ce qui est la topologie réelle et
+non une anomalie.
+
+### Rejouer un run
+
+```bash
+psql "postgresql://postgres@localhost:5432/legacyrec" -f monitoring/flightrec/replay_last_run.sql
+```
+
+Arbre `run → agents → appels LLM`, plus les agrégats P95 / coût / taux d'erreur.
+
+### Garanties
+
+- **Ne fait jamais échouer le pipeline** : file bornée, dépôt non bloquant, aucune
+  exception ne remonte, même base absente.
+- **Ne perd jamais silencieusement** : les spans perdus sont comptés séparément
+  (file pleine vs base injoignable) et affichés à la fermeture.
+- **Minimisation** : `attributes` ne contient jamais de prompt, de réponse de modèle,
+  de code source ni de secret — pas même `exception.message`, seulement le type.
+- **Coût illustratif** : `cost_usd` est une estimation à tarif catalogue
+  (`ModelPricing.java`), jamais une dépense constatée ; modèles locaux à 0.
 
 ## Project structure
 
@@ -146,6 +229,7 @@ ici faute de temps dans cette session.
 agent/          Java source — AST parsing, agents, orchestrator (Maven)
 airflow/        DAG definitions for pipeline scheduling
 monitoring/     Prometheus config + Grafana dashboard
+monitoring/flightrec/  Schema TimescaleDB (init.sql) + requete de replay
 hooks/          Git hooks for CI integration
 docker-compose.yml
 ```
