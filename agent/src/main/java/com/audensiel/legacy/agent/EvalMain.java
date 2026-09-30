@@ -50,7 +50,13 @@ public class EvalMain {
 
         // Racine « eval ». DependencyMapperAgent et AgentEvaluator ne sont instanciés que
         // dans ce mode : sans cette racine, ces deux agents n'apparaîtraient dans aucun span.
-        SpanRecorder recorder = SpanRecorder.get();
+        //
+        // start() et non get() : EvalMain est aussi un point d'entrée à part entière
+        // (java -cp app.jar ...EvalMain), auquel cas Main n'a jamais démarré le recorder et
+        // FLIGHTREC_ENABLED=true resterait sans effet. start() est idempotent, donc l'appel
+        // depuis Main (mode « eval ») réutilise le recorder déjà actif.
+        SpanRecorder recorder = SpanRecorder.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(recorder::close, "flightrec-eval-shutdown"));
         RunMetrics metrics = new RunMetrics("golden-dataset", recorder);
 
         try (var runSpan = recorder.span("run", "AgentEvaluator", "eval")) {

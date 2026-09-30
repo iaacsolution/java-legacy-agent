@@ -91,7 +91,13 @@ public final class SpanRecorder implements AutoCloseable {
      * <p>Ne lève jamais : un défaut de configuration désactive l'enregistrement, il
      * n'empêche pas le pipeline de tourner.
      */
-    public static SpanRecorder start() {
+    public static synchronized SpanRecorder start() {
+        // Idempotent : plusieurs points d'entrée peuvent appeler start() dans le même
+        // process (Main délègue à EvalMain, qui est aussi lançable seul). Sans cela, le
+        // second appel remplacerait le recorder actif et abandonnerait son thread
+        // d'écriture avec les spans encore en file.
+        if (active.enabled()) return active;
+
         if (!"true".equalsIgnoreCase(System.getenv("FLIGHTREC_ENABLED"))) {
             active = disabled();
             return active;
