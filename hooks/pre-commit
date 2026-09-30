@@ -2,12 +2,61 @@
 # Hook Git pre-commit — détection des changements cassants sur les signatures Java
 # Installation : cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 
-echo "=== Secret Scan ==="
-SECRET_HITS=$(git diff --cached -U0 -- . ':!*.md' \
-    | grep -E '^\+' | grep -viE '^\+\+\+' \
+# Filtre de detection de secrets, isole dans une fonction pour que le self-test
+# (--self-test) exerce exactement le meme code que le hook reel : un test qui
+# reimplementerait le filtre ne prouverait rien sur le filtre reellement utilise.
+# Lit des lignes de diff sur stdin, ecrit les lignes suspectes sur stdout.
+scan_secrets() {
+    grep -E '^\+' | grep -viE '^\+\+\+' \
     | grep -iE '(password|passwd|secret|api[_-]?key|token)[A-Za-z_]*[[:space:]]*[:=][[:space:]]*[^[:space:]]+' \
     | grep -viE '\$\{|\$\(|System\.getenv|process\.env|getenv\(' \
-    | grep -viE '[:=][[:space:]]*(EMPTY|true|false|changeme|placeholder|xxx+|TODO)[[:space:]"'"'"']*$')
+    | grep -viE '[:=][[:space:]]*(EMPTY|true|false|changeme|placeholder|xxx+|TODO)[[:space:]"'"'"']*$' \
+    | awk -v q="'" '
+        # PowerShell : $env:VAR est la lecture d environnement equivalente a
+        # System.getenv, deja en liste blanche ci-dessus (le shell principal de
+        # ce poste est PowerShell). MAIS $env: permet AUSSI d ecrire, ce que
+        # System.getenv ne permet pas : une affectation vers une chaine
+        # litterale ($env:CLE = "sk-ant-...") reste un secret en dur et doit
+        # rester bloquee. Seules les LECTURES sont donc blanchies ici.
+        {
+            ecrit_litteral = ($0 ~ ("\\$env:[A-Za-z_][A-Za-z0-9_]*[ \t]*=[ \t]*[\"" q "]"))
+            mentionne_env  = ($0 ~ /\$env:/)
+            if (mentionne_env && !ecrit_litteral) next
+            print
+        }'
+}
+
+# --self-test : verifie les deux cas limites PowerShell sans toucher a git.
+#   sh hooks/pre-commit --self-test
+if [ "$1" = "--self-test" ]; then
+    echo "=== Self-test du Secret Scan ==="
+    echec=0
+
+    cas_lecture='+$key = $env:ANTHROPIC_API_KEY'
+    if [ -z "$(printf '%s\n' "$cas_lecture" | scan_secrets)" ]; then
+        echo "  OK     lecture acceptee  : $cas_lecture"
+    else
+        echo "  ECHEC  lecture bloquee   : $cas_lecture"
+        echec=1
+    fi
+
+    # Assemble a l execution : ecrit en toutes lettres, cette ligne serait
+    # elle-meme detectee comme un secret en dur par le filtre qu elle teste.
+    faux_jeton='sk-ant-TEST'
+    cas_ecriture="+\$env:ANTHROPIC_API_KEY = \"$faux_jeton\""
+    if [ -n "$(printf '%s\n' "$cas_ecriture" | scan_secrets)" ]; then
+        echo "  OK     ecriture bloquee  : $cas_ecriture"
+    else
+        echo "  ECHEC  ecriture acceptee : $cas_ecriture"
+        echec=1
+    fi
+
+    if [ "$echec" -eq 0 ]; then echo "Self-test : OK"; else echo "Self-test : ECHEC"; fi
+    exit "$echec"
+fi
+
+echo "=== Secret Scan ==="
+SECRET_HITS=$(git diff --cached -U0 -- . ':!*.md' | scan_secrets)
 
 if [ -n "$SECRET_HITS" ]; then
     echo "BLOQUÉ : secret potentiel en dur détecté dans le diff :"
