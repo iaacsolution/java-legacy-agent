@@ -42,21 +42,33 @@ dans ce dépôt.
 ## Règles non négociables
 
 - **Ne jamais annoncer un chiffre non mesuré.** Si un run donne un chiffre différent de
-  celui du README, c'est CE chiffre qui compte. Points de mesure actuels, avec leurs
-  conditions — ce sont des points de mesure, pas des constantes :
+  celui du README, c'est CE chiffre qui compte : ce sont des points de mesure, pas des
+  constantes.
+
+  **VALEURS COURANTES** — chacune avec son backend, elles ne sont pas interchangeables :
+  - F1 **0.808**, médiane de 3 passages, étendue **0.763–0.844** — `golden_dataset_3cases.json`,
+    **Ollama local `qwen2.5-coder:7b`**, température 0.1, après correction `FIELD_PATTERN`.
+    Source : `results/f1_ollama.json`, sorties brutes dans `results/raw/`.
+  - composante déterministe **0.716** (`DependencyMapper`, regex, sans LLM) — exacte, identique
+    aux 3 passages. Elle valait **0.502** avant la correction : **c'est là, et seulement là, que
+    se lit l'effet de `FIELD_PATTERN`**. Le F1 global inclut en plus la dérive LLM, son écart ne
+    lui est pas attribuable.
   - speedup **×2.88** (médianes 20776 ms à 1 worker vs 7218 ms à 4 workers,
-    `scripts/benchmark_speedup.py`, backend Claude Haiku) ; ×2.50 est l'ancienne valeur,
-    sur une autre machine.
-  - F1 **0.802** sur les 5 cas de `golden_dataset.json`, **0.757** sur les 3 cas historiques
-    (valeur du CV). Les deux ne sont pas comparables entre elles.
+    `scripts/benchmark_speedup.py`, **backend Claude Haiku**).
+  - surcoût du recorder **0.448 µs/span**, étendue 0.391–0.492, et débit **23 145 spans/s** —
+    microbenchmark sans LLM. Source : `results/flightrec_bench.json`. **Ne jamais citer ce
+    chiffre de mémoire** : il varie d'un run à l'autre, le relire dans le fichier.
+
+  **VALEURS HISTORIQUES** — conservées comme repères, à ne jamais comparer aux courantes :
+  - **0.757** (3 cas) et **0.802** (5 cas) : antérieurs à la correction `FIELD_PATTERN` et
+    appuyés sur ce bug. 0.757 est la valeur du CV — elle n'est plus reproductible ni comparable.
+  - speedup **×2.50** : mesure antérieure, autre machine, également sur Claude Haiku.
+
+  **RÈGLES DE LECTURE :**
   - **Le F1 global n'est pas reproductible à l'identique.** Seule la composante
     `DependencyMapper` (regex, sans LLM) l'est, au bit près. Les composantes LLM (risques,
     responsabilités) dérivent d'un run à l'autre même à température 0.1, et dépendent du
     backend actif. Toujours préciser le backend en rapportant un F1.
-  - **`FIELD_PATTERN` a été corrigé** : la composante déterministe est passée de
-    0.571/0.933/0.000 (moyenne **0.502**) à 0.714/0.933/0.500 (moyenne **0.716**) sur les
-    3 cas historiques. **Le F1 n'est donc plus comparable au 0.757**, qui reposait sur ce
-    bug. Mesures et sorties brutes : `results/f1_ollama.json`, `results/raw/`.
   - **Deux serveurs Ollama peuvent écouter sur 11434** — le natif Windows sur `127.0.0.1`
     (1 modèle) et le conteneur Docker sur `[::1]` via le relais WSL (3 modèles). `localhost`
     est donc ambigu selon la résolution IPv4/IPv6. Épingler

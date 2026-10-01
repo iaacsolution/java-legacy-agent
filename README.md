@@ -43,15 +43,35 @@ DependencyMapperAgent + AgentEvaluator
 
 ## Measured metrics — revision
 
-Measured on `demo-project` (4 classes), cloud backend (Claude Haiku — the only backend where
-parallel workers actually help; Ollama serializes requests by design, see `LlmModelFactory`),
-`AGENT_WORKERS=4`, after commit `4128e54`.
+Chaque chiffre ci-dessous porte **son backend** : ils ne sont pas interchangeables. Le speedup
+est mesuré sur Claude Haiku (seul backend où les workers parallèles aident réellement — Ollama
+sérialise ses requêtes par conception, voir `LlmModelFactory`), sur `demo-project` (4 classes),
+`AGENT_WORKERS=4`. Le F1 est mesuré sur Ollama local. Le surcoût du recorder est un
+microbenchmark sans LLM.
 
-| Metric | Value | Method |
-|--------|-------|--------|
-| Parallelization speedup | **×2.50** (median of 3 runs) | 21.2s (1 worker) → 8.5s (4 workers), medians of 3 runs each — 1-worker range 20.9–23.1s, 4-worker range 8.3–10.8s. Identical payload sizes in both configs (288–378 chars); under 4 workers, all 4 requests dispatch at the same timestamp — real parallelism, not measurement noise. |
-| F1 (`AgentEvaluator`) | **0.802** (5 cas) | Golden dataset, temperature 0.1 — voir "Golden dataset" ci-dessous, pas comparable au 0.757 historique (3 cas) |
-| Outbound payload (cloud path) | 288–378 chars | Signatures, field types, cyclomatic complexity, imports — never a method body, never a SQL literal |
+| Métrique | Valeur | Backend | Méthode et source |
+|---|---|---|---|
+| F1 (`AgentEvaluator`) | **0.808** — médiane de 3 passages, étendue 0.763–0.844 | Ollama local `qwen2.5-coder:7b`, température 0.1 | `golden_dataset_3cases.json`, après correction `FIELD_PATTERN`. Source : [`results/f1_ollama.json`](results/f1_ollama.json), sorties brutes dans `results/raw/` |
+| Speedup de parallélisation | **×2.88** — médianes 20776 ms (1 worker) vs 7218 ms (4 workers) | Claude Haiku | `scripts/benchmark_speedup.py`, 3 runs par configuration, valeurs brutes dans le README ci-dessous |
+| Surcoût du recorder, côté agent | **0.448 µs/span** — étendue 0.391–0.492 | aucun (microbenchmark, sans LLM) | 5 séries de 100 000 spans après chauffe. Source : [`results/flightrec_bench.json`](results/flightrec_bench.json) |
+| Débit d'écriture du recorder | **23 145 spans/s** — 50 000 écrits, 0 perdu | aucun (TimescaleDB local) | idem, source : [`results/flightrec_bench.json`](results/flightrec_bench.json) |
+| Charge sortante (chemin cloud) | 288–378 caractères | Claude Haiku | Signatures, types de champs, complexité cyclomatique, imports — jamais un corps de méthode, jamais un littéral SQL |
+
+**F1 avant / après la correction `FIELD_PATTERN`**, mêmes modèle, empreinte et température
+([`results/f1_ollama.json`](results/f1_ollama.json)) :
+
+| | Composante déterministe (regex, sans LLM) | F1 global — médiane | F1 global — étendue |
+|---|---|---|---|
+| Avant correction | 0.502 | 0.737 | 0.687 – 0.739 |
+| **Après correction** | **0.716** | **0.808** | **0.763 – 0.844** |
+
+**L'effet de la correction se lit sur la composante déterministe, et là seulement** : elle est
+exacte et identique aux 3 passages de chaque série. Le F1 global inclut en plus la dérive du LLM,
+et ses deux étendues se touchent presque — le présenter comme « +0.07 grâce à la correction »
+serait une surinterprétation.
+
+**×2.50 est une mesure antérieure** du même speedup, sur une autre machine, également sur Claude
+Haiku. Elle est conservée plus bas pour mémoire, pas comme valeur courante.
 
 **Revision note.** The earlier ×1.9 speedup figure is retracted, not superseded by a bigger
 number. `JavaParser` (JavaParser library) was not thread-safe: `AstParserAgent` shared one
@@ -95,16 +115,17 @@ dur dans le source. 5 cas : les 3 originaux (EJB `ClientServiceBean`, Struts `Co
 Singleton `ConfigurationManager`) inchangés, + 2 nouveaux (`InvoiceDao` — injection SQL et fuite de
 ressource ; `AuditLogServiceImpl` — exception avalée silencieusement).
 
-**F1 = 0.802 sur les 5 cas actuels — pas directement comparable au 0.757 historique (3 cas).** Les
-2 nouveaux cas évitent volontairement le bug `FIELD_PATTERN` décrit plus bas, ce qui tire
-mécaniquement la moyenne `DependencyMapper` vers le haut (0.502 → 0.701 sur les composantes
-mesurées). Ce n'est pas une amélioration du pipeline, seulement un effet de composition du
-dataset.
+**0.802 sur les 5 cas est un chiffre HISTORIQUE**, mesuré avant la correction `FIELD_PATTERN` et
+donc périmé. Les 2 cas ajoutés évitaient par construction le bug décrit plus bas, ce qui tirait
+mécaniquement la moyenne `DependencyMapper` vers le haut : ce n'était pas une amélioration du
+pipeline, seulement un effet de composition du dataset. La valeur courante est celle du tableau
+de tête, mesurée sur les 3 cas historiques après correction.
 
-**Non-régression vérifiée séparément, pas seulement supposée.** En ré-exécutant `EvalMain` sur les
-3 cas d'origine seuls (dataset isolé, temporaire), le F1 global retombe exactement sur **0.757**,
-identique au chiffre historique — confirme que le passage du hardcode au chargement JSON n'a rien
-changé au calcul.
+**0.757 — chiffre HISTORIQUE, plus comparable à rien d'actuel.** À l'époque de l'externalisation
+du dataset, ré-exécuter `EvalMain` sur les 3 cas d'origine seuls redonnait exactement 0.757, ce
+qui confirmait que le passage du hardcode au chargement JSON n'avait rien changé au calcul. Mais
+ce 0.757 **reposait sur le bug `FIELD_PATTERN`**, corrigé depuis : la comparaison directe avec
+toute mesure actuelle n'a plus de sens. Il n'est conservé ici que comme repère historique.
 
 **Limite connue — le F1 n'est pas parfaitement reproductible d'un run à l'autre.** La composante
 déterministe (`DependencyMapperAgent`, regex, sans LLM) est bit-identique entre deux runs
@@ -112,8 +133,9 @@ indépendants sur les mêmes 3 cas (F1 = 0.571 / 0.933 / 0.000, à chaque fois).
 dépendent du LLM (rappel de mots-clés sur risques et responsabilités) varient réellement d'un
 appel à l'autre, même à température 0.1 — observé concrètement lors de cette session : le F1
 "Risques" du cas 1 est sorti à 0.923 puis 0.833 sur deux runs successifs, mêmes code et mêmes clés
-de vérité. Traiter "0.757" ou "0.802" comme une valeur figée serait trompeur ; ce sont des points
-de mesure, pas des constantes.
+de vérité. Traiter un F1 comme une valeur figée serait trompeur : ce sont des points de mesure,
+pas des constantes. "0.757" et "0.802" sont de surcroît antérieurs à la correction
+`FIELD_PATTERN` — purement historiques.
 
 **`DependencyMapperAgent.FIELD_PATTERN` — bug CORRIGÉ (commit dédié).** Sur un champ
 `private static final Type name`, l'ancien pattern capturait `"static"` comme si c'était le type,
