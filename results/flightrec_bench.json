@@ -1,0 +1,63 @@
+{
+  "genere_le": "2026-10-01T06:48:45Z",
+  "commit": "22074a3f19c1ee5d64003de3bad0cc6cfad8d995",
+  "sortie_brute": "results/raw/flightrec_bench.log",
+  "machine": {
+    "systeme": "Windows",
+    "version_noyau": "11",
+    "architecture": "AMD64",
+    "processeurs_logiques": 12,
+    "jvm": "openjdk version \"21.0.10\" 2026-01-20 LTS",
+    "note": "Volontairement anonymise : ni nom de machine, ni nom d'utilisateur, ni adresse."
+  },
+  "protocole": {
+    "chauffe_non_mesuree_spans": 200000,
+    "series": 5,
+    "spans_par_serie": 100000,
+    "spans_par_run_pour_projection": 30,
+    "duree_run_mediane_ms": 7218,
+    "duree_run_source": "README — benchmark_speedup.py, 4 workers, backend Claude Haiku"
+  },
+  "cout_cote_agent": {
+    "recorder_actif": {
+      "valeurs_us_par_span": [
+        0.492,
+        0.483,
+        0.448,
+        0.391,
+        0.414
+      ],
+      "mediane_us_par_span": 0.448,
+      "etendue_us_par_span": [
+        0.391,
+        0.492
+      ]
+    },
+    "recorder_desactive": {
+      "valeurs_us_par_span": [
+        0.004,
+        0.006,
+        0.004,
+        0.004,
+        0.004
+      ],
+      "mediane_us_par_span": 0.004,
+      "etendue_us_par_span": [
+        0.004,
+        0.006
+      ]
+    },
+    "nature": "Ouverture + fermeture + depot en file. C'est le SEUL cout paye par le thread qui fait le travail utile, donc le seul qui puisse ralentir le pipeline."
+  },
+  "debit_ecriture_copy": {
+    "spans_soumis": 50000,
+    "spans_ecrits": 50000,
+    "spans_perdus": 0,
+    "spans_par_seconde": 23145,
+    "nature": "Paye par le thread d'arriere-plan, pas par le pipeline."
+  },
+  "projection_par_run": {
+    "cout_ms": 0.0134,
+    "part_du_run_pct": 0.000186
+  }
+}
