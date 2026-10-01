@@ -228,6 +228,46 @@ et n'interfère pas avec la base locale :
 docker compose --profile flightrec up -d timescaledb   # port hôte 5433
 ```
 
+### Compte Grafana en lecture seule
+
+Grafana **lit** les spans ; il ne doit pas détenir les identifiants d'écriture de
+l'enregistreur. Deux comptes distincts, donc : `FLIGHTREC_*` pour écrire,
+`GRAFANA_PG_*` pour lire.
+
+Créer le compte de lecture, une fois, sur `legacyrec` :
+
+```sql
+-- Remplacer <mot_de_passe> par une valeur choisie, à ne reporter que dans .env
+CREATE ROLE grafana_ro LOGIN PASSWORD '<mot_de_passe>';
+
+GRANT CONNECT ON DATABASE legacyrec TO grafana_ro;
+GRANT USAGE   ON SCHEMA public      TO grafana_ro;
+GRANT SELECT  ON ALL TABLES IN SCHEMA public TO grafana_ro;
+
+-- Pour que les tables créées PLUS TARD soient lisibles elles aussi : sans cette
+-- ligne, une future table (une agrégation continue TimescaleDB, par exemple)
+-- serait invisible de Grafana et les panneaux tomberaient en erreur.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana_ro;
+```
+
+TimescaleDB expose ses vues internes dans d'autres schémas ; si un panneau en a besoin :
+
+```sql
+GRANT USAGE ON SCHEMA timescaledb_information TO grafana_ro;
+```
+
+Puis renseigner dans `.env` (jamais dans un fichier versionné) :
+
+```
+GRAFANA_PG_USER=grafana_ro
+GRAFANA_PG_PASSWORD=<mot_de_passe>
+```
+
+> ⚠️ Dans les fichiers de provisionnement Grafana, n'écrire **que** `${VAR}` —
+> jamais `${VAR:-défaut}`. Grafana ne comprend pas cette seconde forme et la résout
+> à vide, ce qui produit l'erreur `no PostgreSQL user name specified` alors même que
+> la variable est bien présente dans l'environnement du conteneur.
+
 ### Lancer le pipeline avec le recorder
 
 ```bash

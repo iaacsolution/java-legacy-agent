@@ -5,8 +5,16 @@
 # vit que dans la base interne de Grafana ; celle-ci est recréée à chaque
 # démarrage depuis ce fichier.
 #
-# Le mot de passe vient de l'environnement du conteneur Grafana : aucun secret
-# n'est écrit ici. Définir FLIGHTREC_PASSWORD dans .env.
+# Identifiants : compte EN LECTURE SEULE, distinct de celui de l'enregistreur.
+# Grafana ne détient pas les droits d'écriture — voir README, section
+# « Flight recorder », pour la création du compte. Aucun secret n'est écrit ici :
+# les valeurs viennent de l'environnement du conteneur Grafana
+# (GRAFANA_PG_USER / GRAFANA_PG_PASSWORD, à définir dans .env).
+#
+# ATTENTION à la syntaxe : Grafana n'interpole que $VAR et ${VAR}. La forme
+# ${VAR:-défaut} n'est PAS comprise et se résout à vide — c'est ce qui produisait
+# l'erreur « no PostgreSQL user name specified ». Ne jamais mettre de valeur par
+# défaut ici.
 
 apiVersion: 1
 
@@ -18,9 +26,9 @@ datasources:
     # Conteneur local existant. Pour le profil compose, utiliser timescaledb:5432.
     url: host.docker.internal:5432
     database: legacyrec
-    user: ${FLIGHTREC_USER:-postgres}
+    user: ${GRAFANA_PG_USER}
     secureJsonData:
-      password: ${FLIGHTREC_PASSWORD}
+      password: ${GRAFANA_PG_PASSWORD}
     jsonData:
       sslmode: disable
       postgresVersion: 1800

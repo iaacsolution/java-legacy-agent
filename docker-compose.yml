@@ -115,12 +115,17 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD manquant, voir .env.example}
       - GF_USERS_ALLOW_SIGN_UP=false
-      # Consommées par monitoring/grafana/datasources/flightrec-postgres.yml.
-      # Grafana n'interpole dans ses fichiers de provisionnement que les variables
-      # présentes dans l'environnement de SON conteneur — sans ces deux lignes, la
-      # source de données du flight recorder serait provisionnée sans identifiants.
-      - FLIGHTREC_USER=${FLIGHTREC_USER:-postgres}
-      - FLIGHTREC_PASSWORD=${FLIGHTREC_PASSWORD:-flightrec-dev-local}
+      # Compte EN LECTURE SEULE, distinct de celui de l'enregistreur : Grafana ne doit
+      # pas détenir les identifiants d'écriture (FLIGHTREC_USER/PASSWORD). Création du
+      # compte documentée dans le README, section « Flight recorder ».
+      #
+      # Écrites SANS valeur par défaut, volontairement. Grafana n'interpole dans ses
+      # fichiers de provisionnement que $VAR et ${VAR} : il ne comprend PAS la forme
+      # ${VAR:-défaut}, qu'il laisse résoudre à vide. C'est exactement ce qui faisait
+      # échouer la source avec « no PostgreSQL user name specified » — le mot de passe,
+      # écrit sans défaut, était bien interpolé, l'utilisateur non.
+      - GRAFANA_PG_USER=${GRAFANA_PG_USER}
+      - GRAFANA_PG_PASSWORD=${GRAFANA_PG_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
