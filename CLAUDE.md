@@ -90,6 +90,18 @@ dans ce dépôt.
   silencieusement, ni enregistrer de prompt, de réponse de modèle, de code source ou de
   secret dans `attributes` (pas même `exception.message`). Base cible **`legacyrec`**,
   jamais `flightrec` (données du cours TimescaleDB, même conteneur).
+- **Un tableau de bord n'est validé que lorsqu'il affiche des données DANS Grafana**, pas
+  quand ses requêtes fonctionnent en SQL direct. Les deux ont été confondus une fois : les
+  requêtes du tableau de bord renvoyaient bien les lignes attendues dans `psql`, et tous les
+  panneaux étaient pourtant vides. Deux causes, aucune visible en SQL :
+  - la variable `$project` était de type `constant`, déprécié et plus résolu par Grafana 12 —
+    elle restait vide, donc chaque panneau filtrait sur un projet inexistant ;
+  - plus tôt, la source de données elle-même ne se connectait pas, parce que Grafana
+    n'interprète dans ses fichiers de provisionnement que `$VAR` et `${VAR}`, **jamais**
+    `${VAR:-défaut}` (qu'il résout à vide).
+  Vérifier dans l'interface, ou à défaut par l'API (`/api/ds/query`, qui exécute la requête
+  *telle que Grafana la construit*, variables substituées). Exécuter le SQL à la main ne
+  prouve que la base, pas le tableau de bord.
 - **Aucune commande Docker ou Docker Compose sans accord explicite de Stéphane.** Jamais
   de suppression de volume, d'élagage, ni d'arrêt de composition avec suppression des
   volumes : ce dernier drapeau ne se limite pas au profil visé et détruit les volumes de
