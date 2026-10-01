@@ -11,7 +11,7 @@ FLIGHTREC_ENABLED: false
 ########## SORTIE EVALMAIN ##########
 ═════════════════════════════════════════════════════════════════
   ÉVALUATION F1 — Java Legacy Migration Agents
-  Dataset : C:\Users\trist\stephane\projets\java-legacy-agent\golden_dataset_3cases.json
+  Dataset : golden_dataset_3cases.json
 ═════════════════════════════════════════════════════════════════
   3 cas de test chargés
   [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — bascule sur Ollama local (le code ne sort pas du périmètre)
