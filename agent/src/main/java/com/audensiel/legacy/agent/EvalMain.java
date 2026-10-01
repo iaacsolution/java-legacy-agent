@@ -48,7 +48,7 @@ public class EvalMain {
 
         System.out.println("═".repeat(65));
         System.out.println("  ÉVALUATION F1 — Java Legacy Migration Agents");
-        System.out.println("  Dataset : " + datasetPath.toAbsolutePath());
+        System.out.println("  Dataset : " + cheminRelatif(datasetPath));
         System.out.println("═".repeat(65));
 
         List<GoldenCase> cases = loadDataset(datasetPath);
@@ -90,6 +90,25 @@ public class EvalMain {
         System.out.println("─".repeat(65));
         System.out.printf("  ★ F1 GLOBAL (%d cas)        : %.3f%n", cases.size(), globalF1);
         System.out.println("═".repeat(65));
+    }
+
+    /**
+     * Chemin affichable : relatif au répertoire de travail quand c'est possible.
+     *
+     * <p>Les sorties de ce runner sont conservées comme preuves de mesure et commitées
+     * (voir {@code results/raw/}). Un chemin absolu y ferait fuiter le nom d'utilisateur et
+     * l'arborescence locale vers un dépôt public — c'est arrivé, et il a fallu assainir six
+     * logs après coup.
+     *
+     * <p>Replie sur le nom de fichier si le dataset est hors du répertoire de travail :
+     * {@code relativize} produirait sinon une enfilade de {@code ..} tout aussi bavarde.
+     */
+    static String cheminRelatif(Path chemin) {
+        Path absolu = chemin.toAbsolutePath().normalize();
+        Path base = Path.of("").toAbsolutePath().normalize();
+        return absolu.startsWith(base)
+                ? base.relativize(absolu).toString()
+                : absolu.getFileName().toString();
     }
 
     private static List<GoldenCase> loadDataset(Path datasetPath) throws IOException {
