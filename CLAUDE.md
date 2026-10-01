@@ -96,12 +96,22 @@ dans ce dépôt.
   panneaux étaient pourtant vides. Deux causes, aucune visible en SQL :
   - la variable `$project` était de type `constant`, déprécié et plus résolu par Grafana 12 —
     elle restait vide, donc chaque panneau filtrait sur un projet inexistant ;
-  - plus tôt, la source de données elle-même ne se connectait pas, parce que Grafana
-    n'interprète dans ses fichiers de provisionnement que `$VAR` et `${VAR}`, **jamais**
-    `${VAR:-défaut}` (qu'il résout à vide).
-  Vérifier dans l'interface, ou à défaut par l'API (`/api/ds/query`, qui exécute la requête
-  *telle que Grafana la construit*, variables substituées). Exécuter le SQL à la main ne
-  prouve que la base, pas le tableau de bord.
+  - la source de données ne se connectait pas, parce que Grafana n'interprète dans ses
+    fichiers de provisionnement que `$VAR` et `${VAR}`, **jamais** `${VAR:-défaut}`
+    (qu'il résout à vide) ;
+  - le nom de base était renseigné au premier niveau (`database:`) et pas dans
+    `jsonData.database`, seul emplacement lu par Grafana 12 : la source se provisionne
+    sans erreur, puis **toute requête** échoue sur « Aucune base de données par défaut
+    n'est configurée pour cette source de données ».
+
+  Trois pièges, trois symptômes différents, et **aucun des trois n'est visible en
+  exécutant le SQL à la main** — le SQL marchait dans les trois cas. Vérifier dans
+  l'interface, ou à défaut par l'API (`/api/ds/query`, qui exécute la requête *telle que
+  Grafana la construit*, variables substituées ; `/api/datasources/uid/<uid>/health` pour
+  la connexion). Le diagnostic de santé est précis et mérite d'être lu en entier : il
+  distinguait `config_database_length` de `config_json_data_database_length`, et
+  `config_user_length` de `config_password_length` — chacun pointait la vraie cause avant
+  qu'elle soit comprise.
 - **Aucune commande Docker ou Docker Compose sans accord explicite de Stéphane.** Jamais
   de suppression de volume, d'élagage, ni d'arrêt de composition avec suppression des
   volumes : ce dernier drapeau ne se limite pas au profil visé et détruit les volumes de

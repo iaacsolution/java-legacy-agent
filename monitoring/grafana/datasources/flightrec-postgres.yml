@@ -25,11 +25,19 @@ datasources:
     access: proxy
     # Conteneur local existant. Pour le profil compose, utiliser timescaledb:5432.
     url: host.docker.internal:5432
+    # Conservé au premier niveau pour compatibilité avec les versions antérieures.
+    # Grafana 12 ne lit PLUS le nom de base ici : il attend jsonData.database
+    # ci-dessous. Renseigné seulement ici, la source se provisionne sans erreur mais
+    # toute requête échoue sur « Aucune base de données par défaut n'est configurée
+    # pour cette source de données ». Le diagnostic de santé le dit explicitement :
+    # config_database_length renseigné mais config_json_data_database_length à 0.
     database: legacyrec
     user: ${GRAFANA_PG_USER}
     secureJsonData:
       password: ${GRAFANA_PG_PASSWORD}
     jsonData:
+      # Emplacement attendu par Grafana 12 — c'est CELUI-CI qui est effectif.
+      database: legacyrec
       sslmode: disable
       postgresVersion: 1800
       # Active les fonctions d'agrégat TimescaleDB dans l'éditeur de requêtes.
