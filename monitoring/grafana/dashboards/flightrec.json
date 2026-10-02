@@ -251,7 +251,8 @@
           "unit": "ms",
           "custom": {
             "drawStyle": "line",
-            "lineWidth": 2
+            "lineWidth": 2,
+            "spanNulls": false
           }
         },
         "overrides": []
@@ -261,9 +262,10 @@
           "refId": "A",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT time_bucket('$__interval', time) AS time,\n       percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_ms) AS \"P50\",\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS \"P95\"\nFROM agent_span\nWHERE $__timeFilter(time) AND project = '$project' AND span_kind = 'llm'\nGROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT time_bucket_gapfill('$__interval', time, $__timeFrom(), $__timeTo()) AS time,\n       percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_ms) AS \"P50\",\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS \"P95\"\nFROM agent_span\nWHERE $__timeFilter(time) AND project = '$project' AND span_kind = 'llm'\nGROUP BY 1 ORDER BY 1"
         }
-      ]
+      ],
+      "description": "P50/P95 de la durée des appels LLM. time_bucket_gapfill + spanNulls=false : une tranche sans appel apparaît comme un trou, pas comme un segment reliant les points voisins."
     }
   ]
 }
