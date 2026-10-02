@@ -102,16 +102,34 @@ dans ce dépôt.
   - le nom de base était renseigné au premier niveau (`database:`) et pas dans
     `jsonData.database`, seul emplacement lu par Grafana 12 : la source se provisionne
     sans erreur, puis **toute requête** échoue sur « Aucune base de données par défaut
-    n'est configurée pour cette source de données ».
+    n'est configurée pour cette source de données » ;
+  - un panneau tracé avec `time_bucket` relie les tranches vides par un segment, donnant
+    à lire une activité continue là où il n'y en a aucune. Il faut `time_bucket_gapfill`
+    **et** `spanNulls: false` : gapfill seul produit des NULL que Grafana relierait quand
+    même ;
+  - **`time_bucket_gapfill` avec les macros Grafana en arguments positionnels échoue sur
+    « time zone ... not recognized ».** Grafana substitue `$__timeFrom()` par une chaîne
+    **non typée** ; or TimescaleDB a une surcharge
+    `(interval, timestamptz, timezone text, start, finish)` dont le 3ᵉ paramètre est un
+    fuseau horaire, et PostgreSQL la préfère parce qu'un littéral non typé se convertit
+    plus volontiers en `text` qu'en `timestamptz`. Écrire les paramètres **nommés** avec
+    casts explicites :
+    `time_bucket_gapfill('$__interval'::interval, time, start => $__timeFrom()::timestamptz, finish => $__timeTo()::timestamptz)`
 
-  Trois pièges, trois symptômes différents, et **aucun des trois n'est visible en
-  exécutant le SQL à la main** — le SQL marchait dans les trois cas. Vérifier dans
-  l'interface, ou à défaut par l'API (`/api/ds/query`, qui exécute la requête *telle que
-  Grafana la construit*, variables substituées ; `/api/datasources/uid/<uid>/health` pour
-  la connexion). Le diagnostic de santé est précis et mérite d'être lu en entier : il
-  distinguait `config_database_length` de `config_json_data_database_length`, et
-  `config_user_length` de `config_password_length` — chacun pointait la vraie cause avant
-  qu'elle soit comprise.
+  Cinq pièges, cinq symptômes différents, et **aucun n'est visible en exécutant le SQL à
+  la main** — il marchait dans les cinq cas. Le dernier a même été masqué par un test
+  trop favorable : la requête avait été éprouvée avec `now() - interval '40 minutes'`,
+  des expressions **déjà typées**, alors que Grafana envoie des chaînes brutes.
+  **Pour tester une requête de panneau, reproduire ce que Grafana envoie réellement** :
+  macros remplacées par des chaînes non typées (`'2026-10-01T07:00:00Z'`), jamais par des
+  dates typées ni par `now()`.
+
+  Vérifier dans l'interface, ou à défaut par l'API (`/api/ds/query`, qui exécute la
+  requête *telle que Grafana la construit*, variables substituées ;
+  `/api/datasources/uid/<uid>/health` pour la connexion). Le diagnostic de santé est
+  précis et mérite d'être lu en entier : il distinguait `config_database_length` de
+  `config_json_data_database_length`, et `config_user_length` de
+  `config_password_length` — chacun pointait la vraie cause avant qu'elle soit comprise.
 - **Aucune commande Docker ou Docker Compose sans accord explicite de Stéphane.** Jamais
   de suppression de volume, d'élagage, ni d'arrêt de composition avec suppression des
   volumes : ce dernier drapeau ne se limite pas au profil visé et détruit les volumes de

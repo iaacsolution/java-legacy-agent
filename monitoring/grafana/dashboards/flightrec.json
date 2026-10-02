@@ -262,10 +262,10 @@
           "refId": "A",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT time_bucket_gapfill('$__interval', time, $__timeFrom(), $__timeTo()) AS time,\n       percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_ms) AS \"P50\",\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS \"P95\"\nFROM agent_span\nWHERE $__timeFilter(time) AND project = '$project' AND span_kind = 'llm'\nGROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT time_bucket_gapfill('$__interval'::interval, time,\n         start => $__timeFrom()::timestamptz, finish => $__timeTo()::timestamptz) AS time,\n       percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_ms) AS \"P50\",\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS \"P95\"\nFROM agent_span\nWHERE $__timeFilter(time) AND project = '$project' AND span_kind = 'llm'\nGROUP BY 1 ORDER BY 1"
         }
       ],
-      "description": "P50/P95 de la durée des appels LLM. time_bucket_gapfill + spanNulls=false : une tranche sans appel apparaît comme un trou, pas comme un segment reliant les points voisins."
+      "description": "P50/P95 de la durée des appels LLM. time_bucket_gapfill + spanNulls=false : une tranche sans appel apparaît comme un trou, pas comme un segment reliant les points voisins. Paramètres NOMMÉS (start =>, finish =>) et casts explicites : Grafana substitue ses macros par des chaînes non typées, et en position 3 PostgreSQL choisirait la surcharge attendant un fuseau horaire."
     }
   ]
 }
