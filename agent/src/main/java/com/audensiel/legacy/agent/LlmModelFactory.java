@@ -24,6 +24,10 @@ import java.time.Duration;
  */
 public class LlmModelFactory {
 
+    static final String VLLM_MODEL      = "Qwen/Qwen2.5-Coder-7B-Instruct";
+    static final String ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
+    static final String OLLAMA_MODEL    = "qwen2.5-coder:7b";
+
     private static boolean cloudAllowed() {
         return Boolean.parseBoolean(System.getenv().getOrDefault("ALLOW_CLOUD_CODE_ANALYSIS", "false"));
     }
@@ -41,6 +45,20 @@ public class LlmModelFactory {
         return (vllmUrl == null || vllmUrl.isBlank())
                 && apiKey != null && !apiKey.isBlank()
                 && cloudAllowed();
+    }
+
+    /**
+     * Clé stable « backend/modèle » du backend que create() choisirait, même priorité.
+     *
+     * <p>Lue par l'évaluation (EvalMain --json) pour sélectionner la baseline F1 du bon
+     * backend : les composantes LLM n'ont pas la même valeur d'un backend à l'autre, une
+     * baseline Ollama ne doit jamais juger un passage Haiku.
+     */
+    public static String activeBackendKey() {
+        String vllmUrl = System.getenv("VLLM_BASE_URL");
+        if (vllmUrl != null && !vllmUrl.isBlank()) return "vllm/" + VLLM_MODEL;
+        if (isCloudActive()) return "anthropic/" + ANTHROPIC_MODEL;
+        return "ollama/" + OLLAMA_MODEL;
     }
 
     /** Résumé une ligne du backend actif, pour la bannière de démarrage (Main). */
@@ -83,7 +101,7 @@ public class LlmModelFactory {
             return OpenAiChatModel.builder()
                     .baseUrl(vllmUrl + "/v1")
                     .apiKey("EMPTY")                              // vLLM n'exige pas de clé
-                    .modelName("Qwen/Qwen2.5-Coder-7B-Instruct")
+                    .modelName(VLLM_MODEL)
                     .temperature(temperature)
                     .maxTokens(2048)
                     .timeout(timeout)
@@ -96,7 +114,7 @@ public class LlmModelFactory {
                 System.out.println("  [LLM] Anthropic Claude Haiku (cloud) — ALLOW_CLOUD_CODE_ANALYSIS=true, code envoyé hors périmètre");
                 return AnthropicChatModel.builder()
                         .apiKey(apiKey)
-                        .modelName("claude-haiku-4-5-20251001")
+                        .modelName(ANTHROPIC_MODEL)
                         .temperature(temperature)
                         .maxTokens(2048)
                         .listeners(listeners())
@@ -109,7 +127,7 @@ public class LlmModelFactory {
         System.out.println("  [LLM] Ollama local CPU (sérialise — AGENT_WORKERS=1 conseillé)");
         return OllamaChatModel.builder()
                 .baseUrl(ollamaBaseUrl)
-                .modelName("qwen2.5-coder:7b")
+                .modelName(OLLAMA_MODEL)
                 .temperature(temperature)
                 .timeout(timeout)
                 .listeners(listeners())
