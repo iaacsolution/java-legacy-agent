@@ -55,7 +55,7 @@ microbenchmark sans LLM.
 | Speedup de parallélisation | **×2.88** — médianes 20776 ms (1 worker) vs 7218 ms (4 workers) | Claude Haiku | `scripts/benchmark_speedup.py`, 3 runs par configuration, valeurs brutes dans le README ci-dessous |
 | Surcoût du recorder, côté agent | **0.448 µs/span** — étendue 0.391–0.492 | aucun (microbenchmark, sans LLM) | 5 séries de 100 000 spans après chauffe. Source : [`results/flightrec_bench.json`](results/flightrec_bench.json) |
 | Débit d'écriture du recorder | **23 145 spans/s** — 50 000 écrits, 0 perdu | aucun (TimescaleDB local) | idem, source : [`results/flightrec_bench.json`](results/flightrec_bench.json) |
-| Charge sortante (chemin cloud) | 288–378 caractères | Claude Haiku | Signatures, types de champs, complexité cyclomatique, imports — jamais un corps de méthode, jamais un littéral SQL |
+| Charge sortante (chemin cloud) — **squelette AST de la phase `analyze` uniquement** | 288–378 caractères | Claude Haiku | Vrai **seulement** pour `analyzeJavaClassWithAst` (`JavaDocumentationAgent.java:168`, charge choisie en `:173` via `toAnonymizedPromptContext`), appelé par le pipeline (`LegacyMigrationOrchestrator.java:175`) : signatures, types de champs, complexité cyclomatique, imports — pas de corps de méthode, pas de littéral SQL. **Faux pour `analyzeJavaClass` (`JavaDocumentationAgent.java:154-157`), qui envoie le code source brut, sans garde `isCloudActive()`**, sur les modes `plan` (`Main.java:152`), démo sans argument (`Main.java:214`) et `eval` (`EvalMain.java:265`). La phase `report` envoie en outre les spécifications produites par le LLM, sans anonymisation (`LegacyMigrationOrchestrator.java:330`, `:340`). Correction prévue au Lot 2 de `specs/gouvernance-spec.md`. |
 
 **F1 avant / après la correction `FIELD_PATTERN`**, mêmes modèle, empreinte et température
 ([`results/f1_ollama.json`](results/f1_ollama.json)) :
@@ -166,6 +166,53 @@ dépendante d'elle-même (`ConfigurationManager`), ce qui plafonne le cas 3 à 0
 un score censé représenter la qualité du pipeline sur du code legacy réel et varié. Étendre le
 dataset (plus de cas, davantage de diversité de risques) est une amélioration future, pas traitée
 ici faute de temps dans cette session.
+
+## Évaluation automatisée (CI)
+
+`scripts/eval_golden_dataset.py` lance `EvalMain --json`, sans recalculer le F1, et compare son
+résultat à la baseline versionnée [`eval/baseline.json`](eval/baseline.json). Il écrit un
+rapport JSON et la sortie brute dans `eval/reports/`.
+
+```bash
+mvn -f agent/pom.xml package
+python scripts/eval_golden_dataset.py --mode deterministic          # sans LLM
+python scripts/eval_golden_dataset.py --mode full --passes 5        # backend actif, 5 passages
+```
+
+Le script fait deux contrôles, de nature différente :
+
+| Contrôle | Comparaison | Statut | Quand (`.github/workflows/eval.yml`) |
+|---|---|---|---|
+| Composante déterministe (`DependencyMapper`, regex) | TP/FP/FN **exacts** par cas, tolérance 0 | **Bloquant — le seul** | chaque `push` et `pull_request` |
+| F1 global LLM | médiane ≥ médiane de la baseline **du même backend** − tolérance | **Alerte, jamais bloquant** | job `full`, `workflow_dispatch` uniquement, sur Claude Haiku — **prêt mais non activé** (voir ci-dessous), jamais sur une PR |
+
+La composante LLM n'est pas bloquante parce qu'elle dérive d'un passage à l'autre, même à
+température 0.1 (voir plus haut). Un écart signale une dérive à examiner ; il ne juge pas un
+changement de code. Une baseline Ollama ne juge jamais un passage Haiku, ni l'inverse. Tant
+qu'aucune tolérance n'est validée pour un backend, le contrôle LLM rend `NON_EVALUE`.
+
+Le contrôle déterministe est exact dans les deux sens : un F1 qui **monte** sans explication
+est aussi une régression à examiner. Par exemple, neutraliser l'extraction `implements` fait
+passer le cas 1 de 0.714 à 0.769, parce qu'un faux positif disparaît.
+
+**État réel :**
+- **En CI, à chaque push** : seul le contrôle déterministe tourne, et il est bloquant.
+- **Évaluation LLM** : mesurée **en local** sur Claude Haiku, 5 passages. Les rapports
+  et les sorties brutes sont versionnés dans
+  [`eval/reports/`](eval/reports/LISEZMOI.md) ; ce sont eux qui fondent les seuils de
+  `eval/baseline.json`.
+- **Job `full` en CI** : prêt, mais **non activé faute de budget API**. Il n'a pas de
+  déclencheur planifié, et aucun run CI réussi ne l'a encore validé (le seul essai a
+  échoué sur `invalid x-api-key`).
+- **Pour le réactiver** : poser le secret Actions `ANTHROPIC_API_KEY` du dépôt, puis
+  lancer le workflow `eval` par `workflow_dispatch`.
+
+Codes de sortie : `0` PASS (alerte LLM éventuelle signalée), `1` régression déterministe,
+`2` erreur d'exécution ou incohérence.
+
+Le verdict du rapport vaut `PASS`, `PASS_AVEC_ALERTE_LLM` ou `FAIL`. Le hook Stop de Claude
+Code (`.claude/hooks/check-golden-dataset.sh`) accepte `PASS_AVEC_ALERTE_LLM` comme un PASS,
+puisque l'alerte LLM ne bloque jamais. Il affiche l'alerte avec le chemin du rapport.
 
 ## Stack
 

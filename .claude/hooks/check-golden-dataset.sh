@@ -23,11 +23,21 @@ fi
 
 # 3. Arbre propre sur le pipeline : un rapport PASS existe-t-il pour ce commit exact ?
 CURRENT_SHA=$(git rev-parse HEAD)
-LATEST_REPORT=$(ls -t eval_reports/*.json 2>/dev/null | head -n1)
+LATEST_REPORT=$(ls -t eval/reports/*.json 2>/dev/null | head -n1)
 
-if [[ -n "$LATEST_REPORT" ]] && grep -q "\"commit\": \"$CURRENT_SHA\"" "$LATEST_REPORT" \
-   && grep -q '"verdict": "PASS"' "$LATEST_REPORT"; then
-  exit 0   # déjà validé pour ce commit exact, pas besoin de relancer
+# PASS_AVEC_ALERTE_LLM vaut PASS : seule la composante déterministe est bloquante (voir
+# README, « Évaluation automatisée ») ; l'alerte LLM signale une dérive, elle est affichée
+# mais ne bloque jamais. Le motif est ancré sur la clé « verdict » de premier niveau : les
+# sous-contrôles du rapport portent un « statut », jamais un « verdict ».
+if [[ -n "$LATEST_REPORT" ]] && grep -q "\"commit\": \"$CURRENT_SHA\"" "$LATEST_REPORT"; then
+  if grep -q '"verdict": "PASS"' "$LATEST_REPORT"; then
+    exit 0   # déjà validé pour ce commit exact, pas besoin de relancer
+  fi
+  if grep -q '"verdict": "PASS_AVEC_ALERTE_LLM"' "$LATEST_REPORT"; then
+    echo "⚠️  Alerte LLM (non bloquante) : F1 global sous le seuil de la baseline du backend — voir $LATEST_REPORT" >&2
+    echo "⚠️  Alerte LLM (non bloquante) : F1 global sous le seuil de la baseline du backend — voir $LATEST_REPORT"
+    exit 0
+  fi
 fi
 
 # 4. Pas de rapport frais → bloque et force l'appel au subagent (qui, lui, relance l'éval)

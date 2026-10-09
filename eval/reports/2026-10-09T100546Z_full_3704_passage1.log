@@ -1,0 +1,49 @@
+═════════════════════════════════════════════════════════════════
+  ÉVALUATION F1 — Java Legacy Migration Agents
+  Dataset : golden_dataset_3cases.json
+═════════════════════════════════════════════════════════════════
+  3 cas de test chargés
+  [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — bascule sur Ollama local (le code ne sort pas du périmètre)
+  [LLM] Ollama local CPU (sérialise — AGENT_WORKERS=1 conseillé)
+  [LLM] Clé Anthropic présente mais ALLOW_CLOUD_CODE_ANALYSIS non activé — bascule sur Ollama local (le code ne sort pas du périmètre)
+  [LLM] Ollama local CPU (sérialise — AGENT_WORKERS=1 conseillé)
+
+━━━ cas1 : EJB ClientServiceBean ━━━
+12:05:47 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / dependency-map
+12:05:47 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / evaluate
+  DependencyMapper :                  Precision=0,714  Recall=0,714  F1=0,714  (TP=5 FP=2 FN=2)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:07:12 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,429  F1=0,600  (TP=3 FP=0 FN=4)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=1,000  F1=1,000  (TP=4 FP=0 FN=0)
+
+━━━ cas2 : Struts CommandeAction ━━━
+12:07:12 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / dependency-map
+12:07:12 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=0,875  F1=0,933  (TP=7 FP=0 FN=1)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:10:04 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,571  F1=0,727  (TP=4 FP=0 FN=3)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=0,750  F1=0,857  (TP=3 FP=0 FN=1)
+
+━━━ cas3 : Singleton ConfigurationManager ━━━
+12:10:04 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / dependency-map
+12:10:04 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / evaluate
+  DependencyMapper :                  Precision=0,500  Recall=0,500  F1=0,500  (TP=1 FP=1 FN=1)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:11:13 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,667  F1=0,800  (TP=4 FP=0 FN=2)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=1,000  F1=1,000  (TP=3 FP=0 FN=0)
+
+═════════════════════════════════════════════════════════════════
+  SCORES GLOBAUX
+─────────────────────────────────────────────────────────────────
+  DependencyMapper F1 moyen  : 0,716
+  Risques LLM F1 moyen       : 0,709
+  Responsabilités F1 moyen   : 0,952
+─────────────────────────────────────────────────────────────────
+  ★ F1 GLOBAL (3 cas)        : 0,792
+═════════════════════════════════════════════════════════════════

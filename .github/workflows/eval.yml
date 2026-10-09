@@ -1,0 +1,115 @@
+# Évaluation du golden dataset — deux niveaux de nature différente.
+#
+#   deterministic (push, pull_request) — SEUL CONTRÔLE BLOQUANT.
+#     Tests JUnit + composante DependencyMapper (regex, sans LLM) comparée en TP/FP/FN
+#     exacts à eval/baseline.json. Aucune clé, aucun appel réseau vers un LLM,
+#     reproductible au bit près.
+#
+#   full (workflow_dispatch uniquement) — ALERTE, PAS UN BLOCAGE.
+#     PRÊT MAIS NON ACTIVÉ, faute de budget API : pas de déclencheur planifié (il
+#     échouerait chaque semaine). Pour le réactiver : poser le secret ANTHROPIC_API_KEY
+#     (secret Actions du dépôt) et lancer le workflow par workflow_dispatch.
+#     L'évaluation LLM est mesurée en local (voir eval/reports/LISEZMOI.md).
+#     Évaluation complète sur Claude Haiku. Les composantes LLM dérivent d'un passage à
+#     l'autre même à température 0.1 : un écart à la baseline signale une dérive à
+#     examiner, il ne juge pas un changement de code. Ce job ne tourne JAMAIS sur une
+#     pull_request (une PR depuis un fork n'a pas accès aux secrets, et une alerte
+#     probabiliste ne doit pas bloquer une fusion).
+
+name: eval
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# logback écrit par défaut dans /app/logs (conteneur), non inscriptible sur le runner :
+# sans cette variable, chaque exécution imprimait une trace de pile logback.
+env:
+  AGENT_LOG_DIR: ${{ github.workspace }}/../agent-logs
+
+jobs:
+  deterministic:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # package exécute aussi les tests (integration et bench exclus par défaut, pom.xml),
+      # dont EvalMainDeterministicTest.
+      - name: Build + tests
+        run: mvn -B -f agent/pom.xml package
+
+      - name: Composante déterministe (bloquant)
+        run: python scripts/eval_golden_dataset.py --mode deterministic
+
+      - name: Rapports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: eval-deterministic
+          path: eval/reports/
+          if-no-files-found: ignore
+
+  full:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: mvn -B -f agent/pom.xml package -DskipTests
+
+      # Échoue proprement si le secret manque, sans jamais l'afficher : seul son
+      # caractère vide ou non est testé.
+      - name: Vérifier la présence du secret
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::secret ANTHROPIC_API_KEY non configuré"
+            exit 1
+          fi
+
+      # La clé n'est exposée qu'à cette étape. Elle n'est jamais écho ; GitHub la masque
+      # dans les logs ; LlmModelFactory ne l'imprime pas ; logRequests/logResponses sont
+      # interdits par hooks/pre-commit (ils logueraient l'en-tête x-api-key).
+      - name: Évaluation complète Haiku (alerte)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ALLOW_CLOUD_CODE_ANALYSIS: "true"
+          FLIGHTREC_ENABLED: "false"
+        run: python scripts/eval_golden_dataset.py --mode full --dataset golden_dataset.json
+
+      - name: Rapports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: eval-full
+          path: eval/reports/
+          if-no-files-found: ignore

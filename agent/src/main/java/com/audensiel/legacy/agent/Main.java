@@ -4,6 +4,7 @@ import com.audensiel.legacy.agent.observability.SpanRecorder;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 /**
  * Point d'entrée — plusieurs modes :
@@ -136,7 +137,8 @@ public class Main {
 
         } else if (args.length >= 1 && args[0].equals("eval")) {
             // ── Mode évaluation F1 ──────────────────────────────────
-            EvalMain.main(new String[]{});
+            // Arguments transmis tels quels : dataset, --deterministic-only, --json.
+            EvalMain.main(Arrays.copyOfRange(args, 1, args.length));
 
         } else if (args.length >= 1 && args[0].equals("plan")) {
             // ── Mode plan de migration — demo Screenshot 4 ──────────
