@@ -198,6 +198,10 @@ passer le cas 1 de 0.714 à 0.769, parce qu'un faux positif disparaît.
 Codes de sortie : `0` PASS (alerte LLM éventuelle signalée), `1` régression déterministe,
 `2` erreur d'exécution ou incohérence.
 
+Le verdict du rapport vaut `PASS`, `PASS_AVEC_ALERTE_LLM` ou `FAIL`. Le hook Stop de Claude
+Code (`.claude/hooks/check-golden-dataset.sh`) accepte `PASS_AVEC_ALERTE_LLM` comme un PASS,
+puisque l'alerte LLM ne bloque jamais. Il affiche l'alerte avec le chemin du rapport.
+
 ## Stack
 
 | Layer | Technology |
