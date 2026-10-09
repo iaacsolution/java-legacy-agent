@@ -214,6 +214,59 @@ Le verdict du rapport vaut `PASS`, `PASS_AVEC_ALERTE_LLM` ou `FAIL`. Le hook Sto
 Code (`.claude/hooks/check-golden-dataset.sh`) accepte `PASS_AVEC_ALERTE_LLM` comme un PASS,
 puisque l'alerte LLM ne bloque jamais. Il affiche l'alerte avec le chemin du rapport.
 
+## Redaction des secrets et PII (avant tout LLM)
+
+Chaque message envoyé à un LLM est filtré, **quel que soit le backend** (vLLM, Claude Haiku,
+Ollama), message système compris. Le filtre est un décorateur `RedactingChatModel`, posé par
+`LlmModelFactory.create()`, l'unique site de construction de modèle : il couvre ainsi les
+5 proxys `AiServices` du projet. Code : `agent/src/main/java/com/audensiel/legacy/agent/governance/`.
+
+| Variable | Valeurs | Effet |
+|---|---|---|
+| `LLM_REDACTION` | `on` (défaut) / `off` | `off` désactive le filtre et le signale par un WARN au démarrage |
+| `LLM_REDACTION_POLICY` | `redact` (défaut) / `block` | `block` refuse l'envoi (exception) dès qu'une valeur est détectée ; rien ne part |
+| `ALLOW_CLOUD_RAW_CODE` | absent (défaut) / `true` | sans lui, `analyzeJavaClass` refuse d'envoyer du code **brut** vers le cloud (exception + log ERROR) |
+
+Une valeur inconnue pour `LLM_REDACTION` ou `LLM_REDACTION_POLICY` est une erreur explicite,
+jamais un retour silencieux au défaut.
+
+**Types détectés**, appliqués dans cet ordre, chacun sur le texte déjà filtré par les
+précédents :
+1. clé privée (bloc `BEGIN … END`) ;
+2. identifiants d'URL JDBC (seuls les identifiants sont remplacés, pas l'URL entière) ;
+3. clés d'API (préfixes connus, puis affectation), mots de passe et jetons affectés à un littéral ;
+4. e-mails ;
+5. IP internes (10/8, 172.16/12, 192.168/16, 127/8).
+
+JDBC passe avant les e-mails parce que `user:pass@hôte` ressemble à une adresse e-mail. Les
+IP passent en dernier parce qu'une IP peut être l'hôte d'une URL JDBC.
+
+**Marqueur** : `<REDACTED:TYPE:h>`, où `h` est le HMAC-SHA256 tronqué du secret, calculé
+avec une clé aléatoire tirée au démarrage et gardée en mémoire seulement. Un même secret
+donne le même marqueur sur toute l'exécution. Il n'existe **aucune table de
+correspondance** : les documents produits (DAT, plan) contiennent des marqueurs, jamais les
+valeurs.
+
+**Flight recorder** : un span `redaction` par appel, fils du span `agent`, qui porte la
+classe analysée. Il ne contient que des nombres (`redaction.<TYPE>`, `redaction.total`) et
+la politique appliquée, jamais une valeur.
+
+**Limites — ce n'est pas une garantie absolue :**
+- Le filtre repose sur des expressions régulières : des **faux négatifs** restent possibles.
+  Exemples : secret construit dynamiquement, nom de variable neutre (`String x = "…"`),
+  format de clé inconnu, `getConnection(url, user, pass)` avec des variables.
+- **Non couverts** par les types ci-dessus : noms propres (`@author Jean Dupont`), noms
+  d'hôtes internes, URL de tickets.
+- **Faux positifs possibles** : un identifiant qui contient un mot-clé (`tokenizerName = "…"`)
+  est filtré.
+- **Effet sur la qualité d'analyse non mesuré.** Le golden dataset ne contient aucun secret :
+  la redaction n'y change rien, ce que prouve le test `GoldenDatasetNoOpTest` (payload
+  identique avec et sans filtre, zéro détection). Son F1 ne dit donc rien de l'analyse d'un
+  code qui contient des secrets.
+- **Marqueurs différents d'une phase à l'autre** : `analyze` et `report` tournent dans deux
+  JVM, donc avec deux clés. La phase `report` ne reçoit que la sortie LLM d'`analyze`, déjà
+  filtrée ; mais un handoff produit sans redaction serait marqué avec la clé de `report`.
+
 ## Stack
 
 | Layer | Technology |

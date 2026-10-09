@@ -40,6 +40,10 @@ Observabilité : Prometheus (Pushgateway) / Grafana / Phoenix OTEL
   `python scripts/eval_golden_dataset.py --mode deterministic` (sans LLM, **seul contrôle
   bloquant**, TP/FP/FN exacts) ou `--mode full [--passes N]` (backend actif, alerte non
   bloquante). Rapports dans `eval/reports/`. CI : `.github/workflows/eval.yml`.
+- Redaction avant tout LLM (package `governance`, posée par `LlmModelFactory.create()` sur
+  les 3 backends) : `LLM_REDACTION=on|off` (défaut `on`), `LLM_REDACTION_POLICY=redact|block`
+  (défaut `redact`). `ALLOW_CLOUD_RAW_CODE=true` est requis pour que `analyzeJavaClass` envoie
+  du code brut vers le cloud. Détails et limites : README, section « Redaction ».
 
 Il n'y a **ni pytest, ni ruff, ni `run_pipeline.py`** dans ce dépôt.
 
