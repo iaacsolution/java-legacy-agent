@@ -32,7 +32,7 @@ Limites connues, volontairement non corrigées : `HashMap` n'apparaît que via `
 
 1. **Non-régression**, en deux niveaux :
    - **Composante déterministe** : doit rester **exactement** à cas1 0,714 / cas2 0,933 / cas3 0,500. Tolérance 0. Toute différence est bloquante.
-   - **F1 global** : comparé à la baseline mesurée **sur le même backend**, avec le seuil de tolérance mesuré au Lot 1. Une baisse au-delà du seuil est bloquante.
+   - **F1 global** : comparé à la baseline mesurée **sur le même backend**, avec le seuil de tolérance mesuré au Lot 1. Une baisse au-delà du seuil déclenche une **alerte**, jamais un blocage : les composantes LLM dérivent d'un passage à l'autre. **Le seul contrôle bloquant est la composante déterministe.**
    - 0,757 n'est jamais utilisé comme seuil. Il peut être affiché comme repère historique.
 2. **Aucun chiffre non mesuré** (skill `no-fake-metrics`) : chaque valeur citée dans le code, les docs ou ton rapport doit venir d'une exécution réelle, avec la commande utilisée.
 3. **Ne pas modifier la méthode de calcul du F1** ni le contenu des golden datasets. Les deux limites connues ci-dessus ne sont pas à corriger dans ce chantier.
@@ -58,7 +58,7 @@ Réponds précisément, en citant fichiers et lignes :
 
 **Livrables**
 - `scripts/eval_golden_dataset.py`
-  - Lance l'évaluation existante (`EvalMain`) sur `golden_dataset_3cases.json`, et sur `golden_dataset.json` (5 cas) en option. **Ne réimplémente pas le F1 en Python** : il exploite la sortie de `EvalMain`.
+  - Lance l'évaluation existante (`EvalMain`) sur `golden_dataset.json` (5 cas) par défaut, et rapporte aussi le sous-ensemble des 3 cas historiques (`golden_dataset_3cases.json` reste utilisable via `--dataset`). **Ne réimplémente pas le F1 en Python** : il exploite la sortie de `EvalMain`.
   - Rapporte séparément la composante déterministe (par cas) et le F1 global.
   - Compare à `eval/baseline.json` (structure ci-dessous).
   - Sort un rapport JSON (`eval/reports/<date>.json`) et un résumé lisible.
@@ -108,7 +108,7 @@ Réponds précisément, en citant fichiers et lignes :
 
   Le commit de chaque mesure figure dans les rapports cités (`eval/reports/`), pas au premier niveau : la baseline agrège des mesures de commits différents.
 
-- **Une baseline LLM par backend.** La valeur Ollama (médiane 0,808) existe déjà. Pour le backend utilisé en CI, exécute l'évaluation complète 3 fois, rapporte la médiane, l'étendue et la variance par composante, puis propose un seuil justifié. Je valide le seuil.
+- **Une baseline LLM par backend.** La valeur Ollama (médiane 0,808) existe déjà. Pour le backend utilisé en CI, exécute l'évaluation complète 5 fois, rapporte la médiane, l'étendue et la variance par composante, puis propose un seuil justifié. Je valide le seuil.
 - `.github/workflows/eval.yml` avec deux niveaux :
   - **À chaque push / PR** : uniquement ce qui est déterministe — `mvn test` + composante déterministe du golden dataset, comparée **exactement** à la baseline. Sans LLM, rapide, gratuit, reproductible.
   - **Manuel (`workflow_dispatch`) ou hebdomadaire** : évaluation complète avec LLM, clé via `secrets.ANTHROPIC_API_KEY`. La clé ne doit jamais apparaître dans les logs.
