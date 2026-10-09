@@ -112,6 +112,11 @@ Réponds précisément, en citant fichiers et lignes :
 - `.github/workflows/eval.yml` avec deux niveaux :
   - **À chaque push / PR** : uniquement ce qui est déterministe — `mvn test` + composante déterministe du golden dataset, comparée **exactement** à la baseline. Sans LLM, rapide, gratuit, reproductible.
   - **Manuel (`workflow_dispatch`) ou hebdomadaire** : évaluation complète avec LLM, clé via `secrets.ANTHROPIC_API_KEY`. La clé ne doit jamais apparaître dans les logs.
+  - **Décision (09/10/2026) : envoi du code brut au cloud par le job complet.** Ce job passe par `JavaDocumentationAgent.analyzeJavaClass` (`JavaDocumentationAgent.java:154-157`), qui envoie à Anthropic le code source **brut** des cas du golden dataset, sans garde `isCloudActive()`.
+    - **Accepté**, parce que le golden dataset est entièrement synthétique.
+    - **Acceptation caduque dès qu'un cas réel** (code client ou propriétaire) est ajouté au dataset : le job ne doit alors plus tourner sur un backend cloud tant que le Lot 2 n'est pas livré.
+    - **Le Lot 2 corrige `analyzeJavaClass`.**
+  - **État (09/10/2026)** : le job complet est prêt mais non activé faute de budget API. Il se déclenche uniquement par `workflow_dispatch`, sans déclencheur hebdomadaire ; l'évaluation LLM est mesurée en local.
 
 **Critères d'acceptation**
 - Exécution locale réussie : composante déterministe identique à la baseline, F1 global affiché et comparé à la baseline du backend utilisé.
