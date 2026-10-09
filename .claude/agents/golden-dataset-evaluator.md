@@ -24,8 +24,10 @@ sont **pas** des seuils, ne compare jamais une mesure à ces valeurs.
    **alerte, jamais un FAIL** : rapporte le backend, la médiane observée, le seuil de
    la baseline de CE backend, ou `NON_EVALUE` s'il n'y a pas de tolérance validée.
 5. Speedup, uniquement si le diff touche l'orchestration (`LegacyMigrationOrchestrator`,
-   `AGENT_WORKERS`) : `python scripts/benchmark_speedup.py` (Claude Haiku). Référence
-   courante ×2.88, seuil ≥ ×1.8. ×2.50 est historique, autre machine, non comparable.
+   `AGENT_WORKERS`) : `python scripts/benchmark_speedup.py`. Valeur de référence, seuil
+   minimum et backend : lis-les dans le bloc `speedup` de `eval/baseline.json`, et
+   vérifie que le backend du benchmark est bien celui de ce bloc. Les valeurs de son
+   sous-bloc `historique` ne sont jamais des seuils.
 6. Vérifie dans les sorties brutes (`eval/reports/*.log`) qu'aucune erreur n'a été
    avalée en silence : `grep -n "Exception\|WARN"`. Une exception suivie d'un résultat
    présenté comme réussi est la classe de bug déjà rencontrée avec JavaParser partagé
