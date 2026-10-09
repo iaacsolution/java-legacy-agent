@@ -184,7 +184,7 @@ Le script fait deux contrôles, de nature différente :
 | Contrôle | Comparaison | Statut | Quand (`.github/workflows/eval.yml`) |
 |---|---|---|---|
 | Composante déterministe (`DependencyMapper`, regex) | TP/FP/FN **exacts** par cas, tolérance 0 | **Bloquant — le seul** | chaque `push` et `pull_request` |
-| F1 global LLM | médiane ≥ médiane de la baseline **du même backend** − tolérance | **Alerte, jamais bloquant** | `workflow_dispatch` et hebdomadaire, sur Claude Haiku — **jamais sur une PR** |
+| F1 global LLM | médiane ≥ médiane de la baseline **du même backend** − tolérance | **Alerte, jamais bloquant** | job `full`, `workflow_dispatch` uniquement, sur Claude Haiku — **prêt mais non activé** (voir ci-dessous), jamais sur une PR |
 
 La composante LLM n'est pas bloquante parce qu'elle dérive d'un passage à l'autre, même à
 température 0.1 (voir plus haut). Un écart signale une dérive à examiner ; il ne juge pas un
@@ -194,6 +194,18 @@ qu'aucune tolérance n'est validée pour un backend, le contrôle LLM rend `NON_
 Le contrôle déterministe est exact dans les deux sens : un F1 qui **monte** sans explication
 est aussi une régression à examiner. Par exemple, neutraliser l'extraction `implements` fait
 passer le cas 1 de 0.714 à 0.769, parce qu'un faux positif disparaît.
+
+**État réel :**
+- **En CI, à chaque push** : seul le contrôle déterministe tourne, et il est bloquant.
+- **Évaluation LLM** : mesurée **en local** sur Claude Haiku, 5 passages. Les rapports
+  et les sorties brutes sont versionnés dans
+  [`eval/reports/`](eval/reports/LISEZMOI.md) ; ce sont eux qui fondent les seuils de
+  `eval/baseline.json`.
+- **Job `full` en CI** : prêt, mais **non activé faute de budget API**. Il n'a pas de
+  déclencheur planifié, et aucun run CI réussi ne l'a encore validé (le seul essai a
+  échoué sur `invalid x-api-key`).
+- **Pour le réactiver** : poser le secret Actions `ANTHROPIC_API_KEY` du dépôt, puis
+  lancer le workflow `eval` par `workflow_dispatch`.
 
 Codes de sortie : `0` PASS (alerte LLM éventuelle signalée), `1` régression déterministe,
 `2` erreur d'exécution ou incohérence.

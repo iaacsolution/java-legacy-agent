@@ -5,7 +5,11 @@
 #     exacts à eval/baseline.json. Aucune clé, aucun appel réseau vers un LLM,
 #     reproductible au bit près.
 #
-#   full (workflow_dispatch, hebdomadaire) — ALERTE, PAS UN BLOCAGE.
+#   full (workflow_dispatch uniquement) — ALERTE, PAS UN BLOCAGE.
+#     PRÊT MAIS NON ACTIVÉ, faute de budget API : pas de déclencheur planifié (il
+#     échouerait chaque semaine). Pour le réactiver : poser le secret ANTHROPIC_API_KEY
+#     (secret Actions du dépôt) et lancer le workflow par workflow_dispatch.
+#     L'évaluation LLM est mesurée en local (voir eval/reports/LISEZMOI.md).
 #     Évaluation complète sur Claude Haiku. Les composantes LLM dérivent d'un passage à
 #     l'autre même à température 0.1 : un écart à la baseline signale une dérive à
 #     examiner, il ne juge pas un changement de code. Ce job ne tourne JAMAIS sur une
@@ -18,8 +22,6 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-  schedule:
-    - cron: "0 6 * * 1"   # lundi 06:00 UTC
 
 permissions:
   contents: read
@@ -64,7 +66,7 @@ jobs:
           if-no-files-found: ignore
 
   full:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
