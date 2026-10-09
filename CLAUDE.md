@@ -29,15 +29,19 @@ Observabilité : Prometheus (Pushgateway) / Grafana / Phoenix OTEL
 - Build + tests : `mvn -f agent/pom.xml test`
 - Packaging : `mvn -f agent/pom.xml package` → `agent/target/java-legacy-agent-1.0.0.jar`
 - Éval F1 : `java -cp agent/target/java-legacy-agent-1.0.0.jar com.audensiel.legacy.agent.EvalMain [dataset.json]`
-  (ou `java -jar ... eval`). Datasets : `golden_dataset.json` (5 cas),
+  (ou `java -jar ... eval`), options `--deterministic-only` (aucun modèle construit) et
+  `--json <fichier>` (résultat structuré, insensible à la locale). Datasets : `golden_dataset.json` (5 cas),
   `golden_dataset_3cases.json` (les 3 cas historiques).
 - Run pipeline (4 workers) : `AGENT_WORKERS=4 java -jar agent/target/java-legacy-agent-1.0.0.jar <projet> [sortie]`
 - Benchmark speedup : `python scripts/benchmark_speedup.py`
 - Tests d'intégration (base réelle) : `mvn -f agent/pom.xml test -Dgroups=integration -DexcludedGroups=`
 - Microbenchmark recorder : `mvn -f agent/pom.xml test -Dgroups=bench -DexcludedGroups=`
+- Éval contre baseline (`eval/baseline.json`) :
+  `python scripts/eval_golden_dataset.py --mode deterministic` (sans LLM, **seul contrôle
+  bloquant**, TP/FP/FN exacts) ou `--mode full [--passes N]` (backend actif, alerte non
+  bloquante). Rapports dans `eval/reports/`. CI : `.github/workflows/eval.yml`.
 
-Il n'y a **ni pytest, ni ruff, ni `run_pipeline.py`, ni `scripts/eval_golden_dataset.py`**
-dans ce dépôt.
+Il n'y a **ni pytest, ni ruff, ni `run_pipeline.py`** dans ce dépôt.
 
 ## Règles non négociables
 

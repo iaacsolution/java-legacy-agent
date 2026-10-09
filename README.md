@@ -167,6 +167,37 @@ un score censé représenter la qualité du pipeline sur du code legacy réel et
 dataset (plus de cas, davantage de diversité de risques) est une amélioration future, pas traitée
 ici faute de temps dans cette session.
 
+## Évaluation automatisée (CI)
+
+`scripts/eval_golden_dataset.py` lance `EvalMain --json`, sans recalculer le F1, et compare son
+résultat à la baseline versionnée [`eval/baseline.json`](eval/baseline.json). Il écrit un
+rapport JSON et la sortie brute dans `eval/reports/`.
+
+```bash
+mvn -f agent/pom.xml package
+python scripts/eval_golden_dataset.py --mode deterministic          # sans LLM
+python scripts/eval_golden_dataset.py --mode full --passes 5        # backend actif, 5 passages
+```
+
+Le script fait deux contrôles, de nature différente :
+
+| Contrôle | Comparaison | Statut | Quand (`.github/workflows/eval.yml`) |
+|---|---|---|---|
+| Composante déterministe (`DependencyMapper`, regex) | TP/FP/FN **exacts** par cas, tolérance 0 | **Bloquant — le seul** | chaque `push` et `pull_request` |
+| F1 global LLM | médiane ≥ médiane de la baseline **du même backend** − tolérance | **Alerte, jamais bloquant** | `workflow_dispatch` et hebdomadaire, sur Claude Haiku — **jamais sur une PR** |
+
+La composante LLM n'est pas bloquante parce qu'elle dérive d'un passage à l'autre, même à
+température 0.1 (voir plus haut). Un écart signale une dérive à examiner ; il ne juge pas un
+changement de code. Une baseline Ollama ne juge jamais un passage Haiku, ni l'inverse. Tant
+qu'aucune tolérance n'est validée pour un backend, le contrôle LLM rend `NON_EVALUE`.
+
+Le contrôle déterministe est exact dans les deux sens : un F1 qui **monte** sans explication
+est aussi une régression à examiner. Par exemple, neutraliser l'extraction `implements` fait
+passer le cas 1 de 0.714 à 0.769, parce qu'un faux positif disparaît.
+
+Codes de sortie : `0` PASS (alerte LLM éventuelle signalée), `1` régression déterministe,
+`2` erreur d'exécution ou incohérence.
+
 ## Stack
 
 | Layer | Technology |
