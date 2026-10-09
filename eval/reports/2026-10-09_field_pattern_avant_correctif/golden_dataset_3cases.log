@@ -1,0 +1,29 @@
+═════════════════════════════════════════════════════════════════
+  ÉVALUATION F1 — Java Legacy Migration Agents
+  Dataset : golden_dataset_3cases.json
+  Mode    : déterministe (DependencyMapper seul, aucun appel LLM)
+═════════════════════════════════════════════════════════════════
+  3 cas de test chargés
+
+━━━ cas1 : EJB ClientServiceBean ━━━
+12:21:23 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / dependency-map
+12:21:23 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / evaluate
+  DependencyMapper :                  Precision=0,571  Recall=0,571  F1=0,571  (TP=4 FP=3 FN=3)
+
+━━━ cas2 : Struts CommandeAction ━━━
+12:21:23 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / dependency-map
+12:21:23 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=0,875  F1=0,933  (TP=7 FP=0 FN=1)
+
+━━━ cas3 : Singleton ConfigurationManager ━━━
+12:21:23 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / dependency-map
+12:21:23 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / evaluate
+  DependencyMapper :                  Precision=0,000  Recall=0,000  F1=0,000  (TP=0 FP=1 FN=2)
+
+═════════════════════════════════════════════════════════════════
+  SCORES GLOBAUX
+─────────────────────────────────────────────────────────────────
+  DependencyMapper F1 moyen  : 0,502
+─────────────────────────────────────────────────────────────────
+  F1 GLOBAL : non calculé (mode déterministe, composantes LLM absentes)
+═════════════════════════════════════════════════════════════════

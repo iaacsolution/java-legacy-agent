@@ -1,0 +1,39 @@
+═════════════════════════════════════════════════════════════════
+  ÉVALUATION F1 — Java Legacy Migration Agents
+  Dataset : golden_dataset.json
+  Mode    : déterministe (DependencyMapper seul, aucun appel LLM)
+═════════════════════════════════════════════════════════════════
+  5 cas de test chargés
+
+━━━ cas1 : EJB ClientServiceBean ━━━
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / dependency-map
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / evaluate
+  DependencyMapper :                  Precision=0,714  Recall=0,714  F1=0,714  (TP=5 FP=2 FN=2)
+
+━━━ cas2 : Struts CommandeAction ━━━
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / dependency-map
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=0,875  F1=0,933  (TP=7 FP=0 FN=1)
+
+━━━ cas3 : Singleton ConfigurationManager ━━━
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / dependency-map
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / evaluate
+  DependencyMapper :                  Precision=0,500  Recall=0,500  F1=0,500  (TP=1 FP=1 FN=1)
+
+━━━ cas4 : InvoiceDao (JDBC brut, injection SQL + fuite de ressource) ━━━
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas4 / dependency-map
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas4 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=1,000  F1=1,000  (TP=5 FP=0 FN=0)
+
+━━━ cas5 : AuditLogServiceImpl (exception avalée silencieusement) ━━━
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas5 / dependency-map
+12:03:22 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas5 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=1,000  F1=1,000  (TP=3 FP=0 FN=0)
+
+═════════════════════════════════════════════════════════════════
+  SCORES GLOBAUX
+─────────────────────────────────────────────────────────────────
+  DependencyMapper F1 moyen  : 0,830
+─────────────────────────────────────────────────────────────────
+  F1 GLOBAL : non calculé (mode déterministe, composantes LLM absentes)
+═════════════════════════════════════════════════════════════════

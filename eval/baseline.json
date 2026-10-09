@@ -41,7 +41,7 @@
       }
     },
     "source": "results/f1_ollama.json, série apres_correction_B (commit 901ba03), identique sur les 3 passages ; verrouillé aussi par EvalMainDeterministicTest ; cas4 et cas5 : eval/reports/2026-10-09T100322Z_deterministic.json (mesure du 2026-10-09, identique aux 5 passages Haiku du même jour), ajoutés sur validation",
-    "note": "C'EST LE garde-fou de FIELD_PATTERN, pas les seuils LLM : un retour du bug fait passer cas1 de 5/2/2 à 4/3/3 et cas3 de 1/1/1 à 0/1/2 (mesuré le 2026-10-09, DependencyMapperAgent restauré à 9b98b6b dans un worktree jetable)."
+    "note": "C'EST LE garde-fou de FIELD_PATTERN, pas les seuils LLM : un retour du bug fait passer cas1 de 5/2/2 à 4/3/3 et cas3 de 1/1/1 à 0/1/2 (mesuré le 2026-10-09, DependencyMapperAgent restauré à 9b98b6b dans un worktree jetable ; preuve : eval/reports/2026-10-09_field_pattern_avant_correctif/)."
   },
   "llm": {
     "ollama/qwen2.5-coder:7b": {

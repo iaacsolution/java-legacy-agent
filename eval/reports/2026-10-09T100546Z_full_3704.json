@@ -1,0 +1,254 @@
+{
+  "commit": "a29ca36d674395fb18c923011a851a762431cc95",
+  "arbre_modifie": true,
+  "date_utc": "2026-10-09T100546Z",
+  "mode": "full",
+  "dataset": "golden_dataset_3cases.json",
+  "baseline": "eval/baseline.json",
+  "passages": 1,
+  "sorties_brutes": [
+    "eval/reports/2026-10-09T100546Z_full_3704_passage1.log"
+  ],
+  "commande": "python scripts/eval_golden_dataset.py --mode full --dataset golden_dataset_3cases.json",
+  "verdict": "PASS",
+  "controles": {
+    "deterministe": {
+      "statut": "PASS",
+      "bloquant": true,
+      "ecarts": [],
+      "cas_sans_reference": []
+    },
+    "llm": {
+      "backend": "ollama/qwen2.5-coder:7b",
+      "bloquant": false,
+      "observe": {
+        "cas_historiques": {
+          "valeurs": [
+            0.792448
+          ],
+          "mediane": 0.792448,
+          "minimum": 0.792448,
+          "maximum": 0.792448,
+          "ecart_type": null
+        }
+      },
+      "comparaisons": [
+        {
+          "perimetre": "cas_historiques",
+          "statut": "NON_EVALUE",
+          "raison": "tolérance non encore validée"
+        }
+      ],
+      "statut": "NON_EVALUE",
+      "raison": "aucune comparaison possible avec un seuil validé"
+    }
+  },
+  "composantes_stats": {
+    "dependency_mapper": {
+      "valeurs": [
+        0.715873
+      ],
+      "mediane": 0.715873,
+      "minimum": 0.715873,
+      "maximum": 0.715873,
+      "ecart_type": null
+    },
+    "risques": {
+      "valeurs": [
+        0.709091
+      ],
+      "mediane": 0.709091,
+      "minimum": 0.709091,
+      "maximum": 0.709091,
+      "ecart_type": null
+    },
+    "responsabilites": {
+      "valeurs": [
+        0.952381
+      ],
+      "mediane": 0.952381,
+      "minimum": 0.952381,
+      "maximum": 0.952381,
+      "ecart_type": null
+    }
+  },
+  "par_cas_dernier_passage": [
+    {
+      "cas": "cas1",
+      "dependency_mapper": {
+        "precision": 0.7142857142857143,
+        "recall": 0.7142857142857143,
+        "f1": 0.7142857142857143,
+        "tp": 5,
+        "fp": 2,
+        "fn": 2
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.42857142857142855,
+        "f1": 0.5999999995799999,
+        "tp": 3,
+        "fp": 0,
+        "fn": 4
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    {
+      "cas": "cas2",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 0.875,
+        "f1": 0.9333333333333333,
+        "tp": 7,
+        "fp": 0,
+        "fn": 1
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.5714285714285714,
+        "f1": 0.7272727268099173,
+        "tp": 4,
+        "fp": 0,
+        "fn": 3
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428566530612,
+        "tp": 3,
+        "fp": 0,
+        "fn": 1
+      }
+    },
+    {
+      "cas": "cas3",
+      "dependency_mapper": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "tp": 1,
+        "fp": 1,
+        "fn": 1
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "f1": 0.79999999952,
+        "tp": 4,
+        "fp": 0,
+        "fn": 2
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      }
+    }
+  ],
+  "resultats_bruts": [
+    {
+      "dataset": "golden_dataset_3cases.json",
+      "mode": "full",
+      "backend": "ollama/qwen2.5-coder:7b",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.42857142857142855,
+            "f1": 0.5999999995799999,
+            "tp": 3,
+            "fp": 0,
+            "fn": 4
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.5714285714285714,
+            "f1": 0.7272727268099173,
+            "tp": 4,
+            "fp": 0,
+            "fn": 3
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.79999999952,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.7158730158730159,
+        "risques": 0.709090908636639,
+        "responsabilites": 0.9523809518843537
+      },
+      "f1_global": 0.7924482921313363
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+═════════════════════════════════════════════════════════════════
+  ÉVALUATION F1 — Java Legacy Migration Agents
+  Dataset : golden_dataset.json
+═════════════════════════════════════════════════════════════════
+  5 cas de test chargés
+  [LLM] Anthropic Claude Haiku (cloud) — ALLOW_CLOUD_CODE_ANALYSIS=true, code envoyé hors périmètre
+  [LLM] Anthropic Claude Haiku (cloud) — ALLOW_CLOUD_CODE_ANALYSIS=true, code envoyé hors périmètre
+
+━━━ cas1 : EJB ClientServiceBean ━━━
+12:08:12 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / dependency-map
+12:08:12 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / evaluate
+  DependencyMapper :                  Precision=0,714  Recall=0,714  F1=0,714  (TP=5 FP=2 FN=2)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:08:24 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas1 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,714  F1=0,833  (TP=5 FP=0 FN=2)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=1,000  F1=1,000  (TP=4 FP=0 FN=0)
+
+━━━ cas2 : Struts CommandeAction ━━━
+12:08:24 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / dependency-map
+12:08:24 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=0,875  F1=0,933  (TP=7 FP=0 FN=1)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:08:32 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas2 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,714  F1=0,833  (TP=5 FP=0 FN=2)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=0,750  F1=0,857  (TP=3 FP=0 FN=1)
+
+━━━ cas3 : Singleton ConfigurationManager ━━━
+12:08:32 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / dependency-map
+12:08:32 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / evaluate
+  DependencyMapper :                  Precision=0,500  Recall=0,500  F1=0,500  (TP=1 FP=1 FN=1)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:08:42 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas3 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,667  F1=0,800  (TP=4 FP=0 FN=2)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=1,000  F1=1,000  (TP=3 FP=0 FN=0)
+
+━━━ cas4 : InvoiceDao (JDBC brut, injection SQL + fuite de ressource) ━━━
+12:08:42 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas4 / dependency-map
+12:08:42 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas4 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=1,000  F1=1,000  (TP=5 FP=0 FN=0)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:08:51 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas4 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,833  F1=0,909  (TP=5 FP=0 FN=1)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=1,000  F1=1,000  (TP=4 FP=0 FN=0)
+
+━━━ cas5 : AuditLogServiceImpl (exception avalée silencieusement) ━━━
+12:08:51 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas5 / dependency-map
+12:08:51 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas5 / evaluate
+  DependencyMapper :                  Precision=1,000  Recall=1,000  F1=1,000  (TP=3 FP=0 FN=0)
+  → Appel LLM pour l'analyse...
+🔍 Analyse du code avec Qwen2.5-Coder...
+12:08:59 [INFO ] c.a.l.a.RunMetrics — Étape réussie : cas5 / analyze
+  Risques (LLM keyword recall) :      Precision=1,000  Recall=0,833  F1=0,909  (TP=5 FP=0 FN=1)
+  Responsabilités (LLM recall) :      Precision=1,000  Recall=0,750  F1=0,857  (TP=3 FP=0 FN=1)
+
+═════════════════════════════════════════════════════════════════
+  SCORES GLOBAUX
+─────────────────────────────────────────────────────────────────
+  DependencyMapper F1 moyen  : 0,830
+  Risques LLM F1 moyen       : 0,857
+  Responsabilités F1 moyen   : 0,943
+─────────────────────────────────────────────────────────────────
+  ★ F1 GLOBAL (5 cas)        : 0,876
+═════════════════════════════════════════════════════════════════

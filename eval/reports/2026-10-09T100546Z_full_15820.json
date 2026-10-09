@@ -1,0 +1,984 @@
+{
+  "commit": "a29ca36d674395fb18c923011a851a762431cc95",
+  "arbre_modifie": true,
+  "date_utc": "2026-10-09T100546Z",
+  "mode": "full",
+  "dataset": "golden_dataset.json",
+  "baseline": "eval/baseline.json",
+  "passages": 5,
+  "sorties_brutes": [
+    "eval/reports/2026-10-09T100546Z_full_15820_passage1.log",
+    "eval/reports/2026-10-09T100546Z_full_15820_passage2.log",
+    "eval/reports/2026-10-09T100546Z_full_15820_passage3.log",
+    "eval/reports/2026-10-09T100546Z_full_15820_passage4.log",
+    "eval/reports/2026-10-09T100546Z_full_15820_passage5.log"
+  ],
+  "commande": "python scripts/eval_golden_dataset.py --mode full --dataset golden_dataset.json --passes 5",
+  "verdict": "PASS",
+  "controles": {
+    "deterministe": {
+      "statut": "PASS",
+      "bloquant": true,
+      "ecarts": [],
+      "cas_sans_reference": [
+        "cas4",
+        "cas5"
+      ]
+    },
+    "llm": {
+      "backend": "anthropic/claude-haiku-4-5-20251001",
+      "bloquant": false,
+      "observe": {
+        "cas_historiques": {
+          "valeurs": [
+            0.860798,
+            0.816354,
+            0.84013,
+            0.830159,
+            0.846032
+          ],
+          "mediane": 0.84013,
+          "minimum": 0.816354,
+          "maximum": 0.860798,
+          "ecart_type": 0.016707
+        },
+        "golden_dataset.json": {
+          "valeurs": [
+            0.897085,
+            0.868167,
+            0.882433,
+            0.87645,
+            0.885974
+          ],
+          "mediane": 0.882433,
+          "minimum": 0.868167,
+          "maximum": 0.897085,
+          "ecart_type": 0.01079
+        }
+      },
+      "comparaisons": [],
+      "statut": "NON_EVALUE",
+      "raison": "aucune baseline pour le backend anthropic/claude-haiku-4-5-20251001"
+    }
+  },
+  "composantes_stats": {
+    "dependency_mapper": {
+      "valeurs": [
+        0.829524,
+        0.829524,
+        0.829524,
+        0.829524,
+        0.829524
+      ],
+      "mediane": 0.829524,
+      "minimum": 0.829524,
+      "maximum": 0.829524,
+      "ecart_type": 0.0
+    },
+    "risques": {
+      "valeurs": [
+        0.890303,
+        0.832121,
+        0.874918,
+        0.85697,
+        0.85697
+      ],
+      "mediane": 0.85697,
+      "minimum": 0.832121,
+      "maximum": 0.890303,
+      "ecart_type": 0.021857
+    },
+    "responsabilites": {
+      "valeurs": [
+        0.971429,
+        0.942857,
+        0.942857,
+        0.942857,
+        0.971429
+      ],
+      "mediane": 0.942857,
+      "minimum": 0.942857,
+      "maximum": 0.971429,
+      "ecart_type": 0.015649
+    }
+  },
+  "par_cas_dernier_passage": [
+    {
+      "cas": "cas1",
+      "dependency_mapper": {
+        "precision": 0.7142857142857143,
+        "recall": 0.7142857142857143,
+        "f1": 0.7142857142857143,
+        "tp": 5,
+        "fp": 2,
+        "fn": 2
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.7142857142857143,
+        "f1": 0.8333333328472221,
+        "tp": 5,
+        "fp": 0,
+        "fn": 2
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    {
+      "cas": "cas2",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 0.875,
+        "f1": 0.9333333333333333,
+        "tp": 7,
+        "fp": 0,
+        "fn": 1
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.7142857142857143,
+        "f1": 0.8333333328472221,
+        "tp": 5,
+        "fp": 0,
+        "fn": 2
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    {
+      "cas": "cas3",
+      "dependency_mapper": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "tp": 1,
+        "fp": 1,
+        "fn": 1
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "f1": 0.79999999952,
+        "tp": 4,
+        "fp": 0,
+        "fn": 2
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    {
+      "cas": "cas4",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.8333333333333334,
+        "f1": 0.9090909085950413,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    {
+      "cas": "cas5",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.8333333333333334,
+        "f1": 0.9090909085950413,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428566530612,
+        "tp": 3,
+        "fp": 0,
+        "fn": 1
+      }
+    }
+  ],
+  "resultats_bruts": [
+    {
+      "dataset": "golden_dataset.json",
+      "mode": "full",
+      "backend": "anthropic/claude-haiku-4-5-20251001",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 7,
+            "fp": 0,
+            "fn": 0
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas4",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.79999999952,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas5",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.8295238095238094,
+        "risques": 0.8903030298114609,
+        "responsabilites": 0.9714285709306122
+      },
+      "f1_global": 0.8970851367552942
+    },
+    {
+      "dataset": "golden_dataset.json",
+      "mode": "full",
+      "backend": "anthropic/claude-haiku-4-5-20251001",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.42857142857142855,
+            "f1": 0.5999999995799999,
+            "tp": 3,
+            "fp": 0,
+            "fn": 4
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas4",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas5",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.8295238095238094,
+        "risques": 0.8321212116424691,
+        "responsabilites": 0.9428571423612244
+      },
+      "f1_global": 0.8681673878425009
+    },
+    {
+      "dataset": "golden_dataset.json",
+      "mode": "full",
+      "backend": "anthropic/claude-haiku-4-5-20251001",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8571428571428571,
+            "f1": 0.9230769225798815,
+            "tp": 6,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.79999999952,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas4",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas5",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.8295238095238094,
+        "risques": 0.8749184144274371,
+        "responsabilites": 0.9428571423612244
+      },
+      "f1_global": 0.8824331221041571
+    },
+    {
+      "dataset": "golden_dataset.json",
+      "mode": "full",
+      "backend": "anthropic/claude-haiku-4-5-20251001",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.79999999952,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas4",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas5",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.8295238095238094,
+        "risques": 0.8569696964809055,
+        "responsabilites": 0.9428571423612244
+      },
+      "f1_global": 0.8764502161219797
+    },
+    {
+      "dataset": "golden_dataset.json",
+      "mode": "full",
+      "backend": "anthropic/claude-haiku-4-5-20251001",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.7142857142857143,
+            "f1": 0.8333333328472221,
+            "tp": 5,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.79999999952,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas4",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas5",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1": 0.9090909085950413,
+            "tp": 5,
+            "fp": 0,
+            "fn": 1
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.8295238095238094,
+        "risques": 0.8569696964809055,
+        "responsabilites": 0.9714285709306122
+      },
+      "f1_global": 0.8859740256451091
+    }
+  ]
+}

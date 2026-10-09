@@ -1,0 +1,173 @@
+{
+  "commit": "803d668c73b406b3e3e09e7d2c54f15d5d17bd92",
+  "arbre_modifie": true,
+  "date_utc": "2026-10-09T100322Z",
+  "mode": "deterministic",
+  "dataset": "golden_dataset.json",
+  "baseline": "eval/baseline.json",
+  "passages": 1,
+  "sorties_brutes": [
+    "eval/reports/2026-10-09T100322Z_deterministic_passage1.log"
+  ],
+  "commande": "python scripts/eval_golden_dataset.py --mode deterministic",
+  "verdict": "PASS",
+  "controles": {
+    "deterministe": {
+      "statut": "PASS",
+      "bloquant": true,
+      "ecarts": [],
+      "cas_sans_reference": [
+        "cas4",
+        "cas5"
+      ]
+    }
+  },
+  "composantes_stats": {},
+  "par_cas_dernier_passage": [
+    {
+      "cas": "cas1",
+      "dependency_mapper": {
+        "precision": 0.7142857142857143,
+        "recall": 0.7142857142857143,
+        "f1": 0.7142857142857143,
+        "tp": 5,
+        "fp": 2,
+        "fn": 2
+      },
+      "risques": null,
+      "responsabilites": null
+    },
+    {
+      "cas": "cas2",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 0.875,
+        "f1": 0.9333333333333333,
+        "tp": 7,
+        "fp": 0,
+        "fn": 1
+      },
+      "risques": null,
+      "responsabilites": null
+    },
+    {
+      "cas": "cas3",
+      "dependency_mapper": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "tp": 1,
+        "fp": 1,
+        "fn": 1
+      },
+      "risques": null,
+      "responsabilites": null
+    },
+    {
+      "cas": "cas4",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0
+      },
+      "risques": null,
+      "responsabilites": null
+    },
+    {
+      "cas": "cas5",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "risques": null,
+      "responsabilites": null
+    }
+  ],
+  "resultats_bruts": [
+    {
+      "dataset": "golden_dataset.json",
+      "mode": "deterministic",
+      "backend": null,
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": null,
+          "responsabilites": null
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": null,
+          "responsabilites": null
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": null,
+          "responsabilites": null
+        },
+        {
+          "cas": "cas4",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": null,
+          "responsabilites": null
+        },
+        {
+          "cas": "cas5",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "risques": null,
+          "responsabilites": null
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.8295238095238094,
+        "risques": null,
+        "responsabilites": null
+      },
+      "f1_global": null
+    }
+  ]
+}
