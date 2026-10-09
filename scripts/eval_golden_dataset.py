@@ -292,6 +292,10 @@ def main() -> int:
     # Le PID départage deux évaluations lancées dans la même seconde (ex. Ollama et Haiku
     # en parallèle) : sans lui, elles écrivaient dans le même fichier de sortie brute.
     base_nom = f"{horodatage}_{args.mode}_{os.getpid()}"
+    # Commit et état de l'arbre lus AU DÉMARRAGE : lus en fin de run, ils attribuaient à
+    # un commit fait pendant un long passage LLM des mesures produites par le précédent.
+    commit = git("rev-parse", "HEAD")
+    arbre_modifie = bool(git("status", "--porcelain", "--untracked-files=no"))
     try:
         if not args.jar.exists():
             raise ErreurEval(f"jar introuvable : {relatif(args.jar)} — lancer `mvn -f agent/pom.xml package`")
@@ -323,8 +327,8 @@ def main() -> int:
             verdict = "PASS_AVEC_ALERTE_LLM"
 
         rapport = {
-            "commit": git("rev-parse", "HEAD"),
-            "arbre_modifie": bool(git("status", "--porcelain", "--untracked-files=no")),
+            "commit": commit,
+            "arbre_modifie": arbre_modifie,
             "date_utc": horodatage,
             "mode": args.mode,
             "dataset": relatif(args.dataset),
