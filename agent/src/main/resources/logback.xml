@@ -7,11 +7,15 @@
         </encoder>
     </appender>
 
-    <!-- Fichier JSON structuré pour l'observabilité -->
+    <!-- Fichier JSON structuré pour l'observabilité.
+         Dossier configurable par AGENT_LOG_DIR (propriété système ou variable
+         d'environnement, résolues par logback), défaut /app/logs (conteneur). Sur un
+         runner CI, /app n'est pas inscriptible : logback imprimait alors une trace de pile
+         à chaque exécution, bruit qui finirait par masquer une vraie erreur. -->
     <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/app/logs/agent.json</file>
+        <file>${AGENT_LOG_DIR:-/app/logs}/agent.json</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>/app/logs/agent.%d{yyyy-MM-dd}.json</fileNamePattern>
+            <fileNamePattern>${AGENT_LOG_DIR:-/app/logs}/agent.%d{yyyy-MM-dd}.json</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">

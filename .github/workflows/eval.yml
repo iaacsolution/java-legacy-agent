@@ -24,6 +24,11 @@ on:
 permissions:
   contents: read
 
+# logback écrit par défaut dans /app/logs (conteneur), non inscriptible sur le runner :
+# sans cette variable, chaque exécution imprimait une trace de pile logback.
+env:
+  AGENT_LOG_DIR: ${{ github.workspace }}/../agent-logs
+
 jobs:
   deterministic:
     if: github.event_name == 'push' || github.event_name == 'pull_request'
