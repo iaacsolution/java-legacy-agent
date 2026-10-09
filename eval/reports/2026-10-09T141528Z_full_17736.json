@@ -1,0 +1,454 @@
+{
+  "commit": "db9fe17a4d347349301a79954c11ea28da59fe07",
+  "arbre_modifie": false,
+  "date_utc": "2026-10-09T141528Z",
+  "mode": "full",
+  "dataset": "golden_dataset_3cases.json",
+  "baseline": "eval/baseline.json",
+  "passages": 3,
+  "sorties_brutes": [
+    "eval/reports/2026-10-09T141528Z_full_17736_passage1.log",
+    "eval/reports/2026-10-09T141528Z_full_17736_passage2.log",
+    "eval/reports/2026-10-09T141528Z_full_17736_passage3.log"
+  ],
+  "commande": "python scripts/eval_golden_dataset.py --mode full --dataset golden_dataset_3cases.json --passes 3",
+  "verdict": "PASS",
+  "controles": {
+    "deterministe": {
+      "statut": "PASS",
+      "bloquant": true,
+      "ecarts": [],
+      "cas_sans_reference": []
+    },
+    "llm": {
+      "backend": "ollama/qwen2.5-coder:7b",
+      "bloquant": false,
+      "observe": {
+        "cas_historiques": {
+          "valeurs": [
+            0.777633,
+            0.753559,
+            0.759115
+          ],
+          "mediane": 0.759115,
+          "minimum": 0.753559,
+          "maximum": 0.777633,
+          "ecart_type": 0.012605
+        }
+      },
+      "comparaisons": [
+        {
+          "perimetre": "cas_historiques",
+          "statut": "PASS",
+          "observe_mediane": 0.759115,
+          "baseline_mediane": 0.808,
+          "tolerance": 0.12175,
+          "seuil": 0.68625
+        }
+      ],
+      "statut": "PASS"
+    }
+  },
+  "composantes_stats": {
+    "dependency_mapper": {
+      "valeurs": [
+        0.715873,
+        0.715873,
+        0.715873
+      ],
+      "mediane": 0.715873,
+      "minimum": 0.715873,
+      "maximum": 0.715873,
+      "ecart_type": 0.0
+    },
+    "risques": {
+      "valeurs": [
+        0.664646,
+        0.592424,
+        0.609091
+      ],
+      "mediane": 0.609091,
+      "minimum": 0.592424,
+      "maximum": 0.664646,
+      "ecart_type": 0.037816
+    },
+    "responsabilites": {
+      "valeurs": [
+        0.952381,
+        0.952381,
+        0.952381
+      ],
+      "mediane": 0.952381,
+      "minimum": 0.952381,
+      "maximum": 0.952381,
+      "ecart_type": 0.0
+    }
+  },
+  "par_cas_dernier_passage": [
+    {
+      "cas": "cas1",
+      "dependency_mapper": {
+        "precision": 0.7142857142857143,
+        "recall": 0.7142857142857143,
+        "f1": 0.7142857142857143,
+        "tp": 5,
+        "fp": 2,
+        "fn": 2
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.42857142857142855,
+        "f1": 0.5999999995799999,
+        "tp": 3,
+        "fp": 0,
+        "fn": 4
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    {
+      "cas": "cas2",
+      "dependency_mapper": {
+        "precision": 1.0,
+        "recall": 0.875,
+        "f1": 0.9333333333333333,
+        "tp": 7,
+        "fp": 0,
+        "fn": 1
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.5714285714285714,
+        "f1": 0.7272727268099173,
+        "tp": 4,
+        "fp": 0,
+        "fn": 3
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428566530612,
+        "tp": 3,
+        "fp": 0,
+        "fn": 1
+      }
+    },
+    {
+      "cas": "cas3",
+      "dependency_mapper": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "tp": 1,
+        "fp": 1,
+        "fn": 1
+      },
+      "risques": {
+        "precision": 1.0,
+        "recall": 0.3333333333333333,
+        "f1": 0.49999999962499997,
+        "tp": 2,
+        "fp": 0,
+        "fn": 4
+      },
+      "responsabilites": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 0.9999999995,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      }
+    }
+  ],
+  "resultats_bruts": [
+    {
+      "dataset": "golden_dataset_3cases.json",
+      "mode": "full",
+      "backend": "ollama/qwen2.5-coder:7b",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.42857142857142855,
+            "f1": 0.5999999995799999,
+            "tp": 3,
+            "fp": 0,
+            "fn": 4
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.5714285714285714,
+            "f1": 0.7272727268099173,
+            "tp": 4,
+            "fp": 0,
+            "fn": 3
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666662222221,
+            "tp": 3,
+            "fp": 0,
+            "fn": 3
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.7158730158730159,
+        "risques": 0.6646464642040465,
+        "responsabilites": 0.9523809518843537
+      },
+      "f1_global": 0.7776334773204719
+    },
+    {
+      "dataset": "golden_dataset_3cases.json",
+      "mode": "full",
+      "backend": "ollama/qwen2.5-coder:7b",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.14285714285714285,
+            "f1": 0.24999999978124998,
+            "tp": 1,
+            "fp": 0,
+            "fn": 6
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.5714285714285714,
+            "f1": 0.7272727268099173,
+            "tp": 4,
+            "fp": 0,
+            "fn": 3
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.79999999952,
+            "tp": 4,
+            "fp": 0,
+            "fn": 2
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.7158730158730159,
+        "risques": 0.5924242420370557,
+        "responsabilites": 0.9523809518843537
+      },
+      "f1_global": 0.7535594032648084
+    },
+    {
+      "dataset": "golden_dataset_3cases.json",
+      "mode": "full",
+      "backend": "ollama/qwen2.5-coder:7b",
+      "par_cas": [
+        {
+          "cas": "cas1",
+          "dependency_mapper": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "tp": 5,
+            "fp": 2,
+            "fn": 2
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.42857142857142855,
+            "f1": 0.5999999995799999,
+            "tp": 3,
+            "fp": 0,
+            "fn": 4
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        {
+          "cas": "cas2",
+          "dependency_mapper": {
+            "precision": 1.0,
+            "recall": 0.875,
+            "f1": 0.9333333333333333,
+            "tp": 7,
+            "fp": 0,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.5714285714285714,
+            "f1": 0.7272727268099173,
+            "tp": 4,
+            "fp": 0,
+            "fn": 3
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571428566530612,
+            "tp": 3,
+            "fp": 0,
+            "fn": 1
+          }
+        },
+        {
+          "cas": "cas3",
+          "dependency_mapper": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "tp": 1,
+            "fp": 1,
+            "fn": 1
+          },
+          "risques": {
+            "precision": 1.0,
+            "recall": 0.3333333333333333,
+            "f1": 0.49999999962499997,
+            "tp": 2,
+            "fp": 0,
+            "fn": 4
+          },
+          "responsabilites": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 0.9999999995,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          }
+        }
+      ],
+      "composantes_moyennes": {
+        "dependency_mapper": 0.7158730158730159,
+        "risques": 0.6090909086716391,
+        "responsabilites": 0.9523809518843537
+      },
+      "f1_global": 0.7591149588096696
+    }
+  ]
+}
