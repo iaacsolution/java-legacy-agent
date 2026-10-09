@@ -23,7 +23,7 @@ fi
 
 # 3. Arbre propre sur le pipeline : un rapport PASS existe-t-il pour ce commit exact ?
 CURRENT_SHA=$(git rev-parse HEAD)
-LATEST_REPORT=$(ls -t eval_reports/*.json 2>/dev/null | head -n1)
+LATEST_REPORT=$(ls -t eval/reports/*.json 2>/dev/null | head -n1)
 
 if [[ -n "$LATEST_REPORT" ]] && grep -q "\"commit\": \"$CURRENT_SHA\"" "$LATEST_REPORT" \
    && grep -q '"verdict": "PASS"' "$LATEST_REPORT"; then

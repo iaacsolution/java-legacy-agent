@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "lecture": "Seule la composante déterministe est bloquante (tolérance 0, TP/FP/FN exacts). Le F1 global LLM est une alerte, comparé à la baseline de SON backend uniquement. Les tolérances LLM sont null tant qu'elles ne sont pas validées : le contrôle LLM est alors NON_EVALUE.",
+  "cas_historiques": [
+    "cas1",
+    "cas2",
+    "cas3"
+  ],
+  "deterministe": {
+    "tolerance": 0,
+    "par_cas": {
+      "cas1": {
+        "tp": 5,
+        "fp": 2,
+        "fn": 2,
+        "f1": 0.714
+      },
+      "cas2": {
+        "tp": 7,
+        "fp": 0,
+        "fn": 1,
+        "f1": 0.933
+      },
+      "cas3": {
+        "tp": 1,
+        "fp": 1,
+        "fn": 1,
+        "f1": 0.5
+      }
+    },
+    "source": "results/f1_ollama.json, série apres_correction_B (commit 901ba03), identique sur les 3 passages ; verrouillé aussi par EvalMainDeterministicTest"
+  },
+  "llm": {
+    "ollama/qwen2.5-coder:7b": {
+      "cas_historiques": {
+        "f1_global": {
+          "valeurs": [
+            0.808,
+            0.763,
+            0.844
+          ],
+          "mediane": 0.808,
+          "minimum": 0.763,
+          "maximum": 0.844,
+          "ecart_type": 0.040583
+        },
+        "composantes": {
+          "dependency_mapper": {
+            "valeurs": [
+              0.716,
+              0.716,
+              0.716
+            ],
+            "mediane": 0.716,
+            "minimum": 0.716,
+            "maximum": 0.716,
+            "ecart_type": 0.0
+          },
+          "risques": {
+            "valeurs": [
+              0.709,
+              0.687,
+              0.817
+            ],
+            "mediane": 0.709,
+            "minimum": 0.687,
+            "maximum": 0.817,
+            "ecart_type": 0.06958
+          },
+          "responsabilites": {
+            "valeurs": [
+              1.0,
+              0.886,
+              1.0
+            ],
+            "mediane": 1.0,
+            "minimum": 0.886,
+            "maximum": 1.0,
+            "ecart_type": 0.065818
+          }
+        },
+        "tolerance": null,
+        "source": "results/f1_ollama.json, série apres_correction_B, 3 passages, golden_dataset_3cases.json, Ollama natif 127.0.0.1:11434, température 0.1 ; valeurs arrondies à 3 décimales par la sortie console d'EvalMain"
+      }
+    }
+  },
+  "historique": {
+    "0.757": {
+      "perimetre": "3 cas",
+      "note": "avant correction FIELD_PATTERN, appuyé sur ce bug, non reproductible — jamais un seuil"
+    },
+    "0.802": {
+      "perimetre": "5 cas",
+      "note": "avant correction FIELD_PATTERN — jamais un seuil"
+    }
+  }
+}

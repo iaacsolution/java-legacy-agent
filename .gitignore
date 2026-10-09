@@ -5,3 +5,6 @@ agent/dependency-reduced-pom.xml
 __pycache__/
 *.pyc
 .env
+
+# Rapports d'évaluation : seuls ceux cités comme preuves sont commités (git add -f)
+eval/reports/
