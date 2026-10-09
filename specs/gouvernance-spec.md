@@ -111,7 +111,7 @@ Réponds précisément, en citant fichiers et lignes :
 - **Une baseline LLM par backend.** La valeur Ollama (médiane 0,808) existe déjà. Pour le backend utilisé en CI, exécute l'évaluation complète 5 fois, rapporte la médiane, l'étendue et la variance par composante, puis propose un seuil justifié. Je valide le seuil.
 - `.github/workflows/eval.yml` avec deux niveaux :
   - **À chaque push / PR** : uniquement ce qui est déterministe — `mvn test` + composante déterministe du golden dataset, comparée **exactement** à la baseline. Sans LLM, rapide, gratuit, reproductible.
-  - **Manuel (`workflow_dispatch`) ou hebdomadaire** : évaluation complète avec LLM, clé via `secrets.ANTHROPIC_API_KEY`. La clé ne doit jamais apparaître dans les logs.
+  - **Manuel uniquement (`workflow_dispatch`).** Un déclenchement hebdomadaire pourra être ajouté quand un budget API dédié existera. Évaluation complète avec LLM, clé via `secrets.ANTHROPIC_API_KEY`. La clé ne doit jamais apparaître dans les logs.
   - **Décision (09/10/2026) : envoi du code brut au cloud par le job complet.** Ce job passe par `JavaDocumentationAgent.analyzeJavaClass` (`JavaDocumentationAgent.java:154-157`), qui envoie à Anthropic le code source **brut** des cas du golden dataset, sans garde `isCloudActive()`.
     - **Accepté**, parce que le golden dataset est entièrement synthétique.
     - **Acceptation caduque dès qu'un cas réel** (code client ou propriétaire) est ajouté au dataset : le job ne doit alors plus tourner sur un backend cloud tant que le Lot 2 n'est pas livré.
