@@ -45,7 +45,11 @@ public class MigrationPlannerAgent {
     private final MigrationPlanner planner;
 
     public MigrationPlannerAgent(String ollamaBaseUrl) {
-        ChatLanguageModel model = LlmModelFactory.create(ollamaBaseUrl, 0.2, Duration.ofMinutes(10));
+        this(LlmModelFactory.create(ollamaBaseUrl, 0.2, Duration.ofMinutes(10)));
+    }
+
+    /** Pour les tests : modèle fourni (aucun vrai LLM). */
+    MigrationPlannerAgent(ChatLanguageModel model) {
         this.planner = AiServices.create(MigrationPlanner.class, model);
     }
 

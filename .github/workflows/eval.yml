@@ -103,6 +103,10 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ALLOW_CLOUD_CODE_ANALYSIS: "true"
+          # EvalMain passe par analyzeJavaClass, qui envoie le code BRUT : refusé en cloud
+          # sans ce drapeau. Accepté ici parce que le golden dataset est synthétique —
+          # décision et conditions de caducité dans specs/gouvernance-spec.md (Lot 1).
+          ALLOW_CLOUD_RAW_CODE: "true"
           FLIGHTREC_ENABLED: "false"
         run: python scripts/eval_golden_dataset.py --mode full --dataset golden_dataset.json
 
