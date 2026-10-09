@@ -8,3 +8,6 @@ __pycache__/
 
 # Rapports d'évaluation : seuls ceux cités comme preuves sont commités (git add -f)
 eval/reports/
+
+# Journaux d'exécution locaux (logback) : jamais suivis
+logs/
