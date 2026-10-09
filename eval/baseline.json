@@ -26,9 +26,22 @@
         "fp": 1,
         "fn": 1,
         "f1": 0.5
+      },
+      "cas4": {
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "f1": 1.0
+      },
+      "cas5": {
+        "tp": 3,
+        "fp": 0,
+        "fn": 0,
+        "f1": 1.0
       }
     },
-    "source": "results/f1_ollama.json, série apres_correction_B (commit 901ba03), identique sur les 3 passages ; verrouillé aussi par EvalMainDeterministicTest"
+    "source": "results/f1_ollama.json, série apres_correction_B (commit 901ba03), identique sur les 3 passages ; verrouillé aussi par EvalMainDeterministicTest ; cas4 et cas5 : eval/reports/2026-10-09T100322Z_deterministic.json (mesure du 2026-10-09, identique aux 5 passages Haiku du même jour), ajoutés sur validation",
+    "note": "C'EST LE garde-fou de FIELD_PATTERN, pas les seuils LLM : un retour du bug fait passer cas1 de 5/2/2 à 4/3/3 et cas3 de 1/1/1 à 0/1/2 (mesuré le 2026-10-09, DependencyMapperAgent restauré à 9b98b6b dans un worktree jetable)."
   },
   "llm": {
     "ollama/qwen2.5-coder:7b": {
@@ -79,9 +92,163 @@
             "ecart_type": 0.065818
           }
         },
-        "tolerance": null,
-        "source": "results/f1_ollama.json, série apres_correction_B, 3 passages, golden_dataset_3cases.json, Ollama natif 127.0.0.1:11434, température 0.1 ; valeurs arrondies à 3 décimales par la sortie console d'EvalMain"
+        "tolerance": 0.12175,
+        "source": "results/f1_ollama.json, série apres_correction_B, 3 passages, golden_dataset_3cases.json, Ollama natif 127.0.0.1:11434, température 0.1 ; valeurs arrondies à 3 décimales par la sortie console d'EvalMain",
+        "calcul_tolerance": {
+          "methode": "tolérance = max(max − min, 3σ) du F1 global (σ = écart-type d'échantillon, n−1) ; seuil = médiane − tolérance ; calcul en pleine précision",
+          "etendue": 0.081,
+          "trois_sigma": 0.12175,
+          "tolerance": 0.12175,
+          "seuil": 0.68625
+        },
+        "ecart_annonce": "Seuil annoncé à la validation : 0.808 − 0.123 = 0.685 ; 3σ = 0.121750, soit 0.122 au millième ; pleine précision : 0.686250.",
+        "note": "Sur Ollama, la dérive LLM est forte (3σ = 0.12) : l'alerte ne détecte qu'un effondrement. La médiane mesurée AVANT correction FIELD_PATTERN (0.737, results/f1_ollama.json) passe ce seuil."
       }
+    },
+    "anthropic/claude-haiku-4-5-20251001": {
+      "cas_historiques": {
+        "f1_global": {
+          "valeurs": [
+            0.860798,
+            0.816354,
+            0.84013,
+            0.830159,
+            0.846032
+          ],
+          "mediane": 0.84013,
+          "minimum": 0.816354,
+          "maximum": 0.860798,
+          "ecart_type": 0.016707
+        },
+        "composantes": {
+          "dependency_mapper": {
+            "valeurs": [
+              0.715873,
+              0.715873,
+              0.715873,
+              0.715873,
+              0.715873
+            ],
+            "mediane": 0.715873,
+            "minimum": 0.715873,
+            "maximum": 0.715873,
+            "ecart_type": 0.0
+          },
+          "risques": {
+            "valeurs": [
+              0.914141,
+              0.780808,
+              0.852137,
+              0.822222,
+              0.822222
+            ],
+            "mediane": 0.822222,
+            "minimum": 0.780808,
+            "maximum": 0.914141,
+            "ecart_type": 0.049411
+          },
+          "responsabilites": {
+            "valeurs": [
+              0.952381,
+              0.952381,
+              0.952381,
+              0.952381,
+              1.0
+            ],
+            "mediane": 0.952381,
+            "minimum": 0.952381,
+            "maximum": 1.0,
+            "ecart_type": 0.021296
+          }
+        },
+        "tolerance": 0.05012,
+        "calcul_tolerance": {
+          "methode": "tolérance = max(max − min, 3σ) du F1 global (σ = écart-type d'échantillon, n−1) ; seuil = médiane − tolérance ; calcul en pleine précision",
+          "etendue": 0.044444,
+          "trois_sigma": 0.05012,
+          "tolerance": 0.05012,
+          "seuil": 0.790011
+        },
+        "source": "eval/reports/2026-10-09T100546Z_full_15820.json (+ sorties brutes *_passage1..5.log), 5 passages, golden_dataset.json, température 0.1 ; périmètre 3 cas = sous-ensemble cas1-cas3 des mêmes passages. Réserve : Passages démarrés sur le commit 026674c ; le rapport est marqué a29ca36 car le script lisait le commit en fin de run (corrigé en ba32434). Aucun fichier Java ne diffère entre 026674c et a29ca36.",
+        "ecart_annonce": "Seuil annoncé à la validation : 0.840 − 0.051 = 0.789 (arrondis) ; pleine précision : 0.790011."
+      },
+      "golden_dataset.json": {
+        "f1_global": {
+          "valeurs": [
+            0.897085,
+            0.868167,
+            0.882433,
+            0.87645,
+            0.885974
+          ],
+          "mediane": 0.882433,
+          "minimum": 0.868167,
+          "maximum": 0.897085,
+          "ecart_type": 0.01079
+        },
+        "composantes": {
+          "dependency_mapper": {
+            "valeurs": [
+              0.829524,
+              0.829524,
+              0.829524,
+              0.829524,
+              0.829524
+            ],
+            "mediane": 0.829524,
+            "minimum": 0.829524,
+            "maximum": 0.829524,
+            "ecart_type": 0.0
+          },
+          "risques": {
+            "valeurs": [
+              0.890303,
+              0.832121,
+              0.874918,
+              0.85697,
+              0.85697
+            ],
+            "mediane": 0.85697,
+            "minimum": 0.832121,
+            "maximum": 0.890303,
+            "ecart_type": 0.021857
+          },
+          "responsabilites": {
+            "valeurs": [
+              0.971429,
+              0.942857,
+              0.942857,
+              0.942857,
+              0.971429
+            ],
+            "mediane": 0.942857,
+            "minimum": 0.942857,
+            "maximum": 0.971429,
+            "ecart_type": 0.015649
+          }
+        },
+        "tolerance": 0.032369,
+        "calcul_tolerance": {
+          "methode": "tolérance = max(max − min, 3σ) du F1 global (σ = écart-type d'échantillon, n−1) ; seuil = médiane − tolérance ; calcul en pleine précision",
+          "etendue": 0.028918,
+          "trois_sigma": 0.032369,
+          "tolerance": 0.032369,
+          "seuil": 0.850064
+        },
+        "source": "eval/reports/2026-10-09T100546Z_full_15820.json (+ sorties brutes *_passage1..5.log), 5 passages, golden_dataset.json, température 0.1 ; périmètre 3 cas = sous-ensemble cas1-cas3 des mêmes passages. Réserve : Passages démarrés sur le commit 026674c ; le rapport est marqué a29ca36 car le script lisait le commit en fin de run (corrigé en ba32434). Aucun fichier Java ne diffère entre 026674c et a29ca36.",
+        "ecart_annonce": "Seuil annoncé à la validation : 0.882 − 0.033 = 0.849 (arrondis) ; pleine précision : 0.850064."
+      }
+    }
+  },
+  "llm_note": "Aucun seuil LLM n'est le garde-fou de FIELD_PATTERN : c'est la comparaison déterministe. Les seuils LLM sont des alertes de dérive, jamais bloquantes.",
+  "speedup": {
+    "valeur": 2.88,
+    "seuil_minimum": 1.8,
+    "backend": "anthropic/claude-haiku-4-5-20251001",
+    "mesure": "médianes 20776 ms (AGENT_WORKERS=1, runs 21228/20776/20365) vs 7218 ms (AGENT_WORKERS=4, runs 6364/8779/7218), demo-project, 3 runs par configuration, 2026-08-06",
+    "source": "scripts/benchmark_speedup.py ; valeurs brutes reprises dans README.md (section Measured metrics) — log d'origine non versionné",
+    "historique": {
+      "2.50": "mesure antérieure, autre machine, Claude Haiku — non comparable, jamais un seuil"
     }
   },
   "historique": {
