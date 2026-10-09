@@ -63,35 +63,50 @@ Réponds précisément, en citant fichiers et lignes :
   - Compare à `eval/baseline.json` (structure ci-dessous).
   - Sort un rapport JSON (`eval/reports/<date>.json`) et un résumé lisible.
   - Code de sortie ≠ 0 en cas de régression.
-- `eval/baseline.json`, structure attendue :
+- `eval/baseline.json` — structure réelle (clés en français), extrait abrégé ; le fichier versionné fait foi :
 
 ```json
 {
-  "dataset": "golden_dataset_3cases.json",
-  "commit": "<sha de la mesure>",
-  "deterministic": {
-    "component": "DependencyMapperAgent (regex, sans LLM)",
-    "per_case": {"cas1": 0.714, "cas2": 0.933, "cas3": 0.500},
-    "mean": 0.716,
-    "tolerance": 0.0
+  "schema": 1,
+  "lecture": "Seule la composante déterministe est bloquante (tolérance 0, TP/FP/FN exacts)...",
+  "cas_historiques": ["cas1", "cas2", "cas3"],
+  "deterministe": {
+    "tolerance": 0,
+    "par_cas": {
+      "cas1": {"tp": 5, "fp": 2, "fn": 2, "f1": 0.714},
+      "cas2": {"tp": 7, "fp": 0, "fn": 1, "f1": 0.933},
+      "cas3": {"tp": 1, "fp": 1, "fn": 1, "f1": 0.5},
+      "cas4": {"tp": 5, "fp": 0, "fn": 0, "f1": 1.0},
+      "cas5": {"tp": 3, "fp": 0, "fn": 0, "f1": 1.0}
+    },
+    "source": "<rapports et commit de la mesure>",
+    "note": "<garde-fou FIELD_PATTERN, avec sa preuve>"
   },
   "llm": {
-    "<backend>": {
-      "model": "<nom exact>",
-      "temperature": 0.1,
-      "runs": 3,
-      "f1_global_median": "<mesuré>",
-      "f1_global_range": ["<min>", "<max>"],
-      "per_component_spread": "<mesuré>",
-      "tolerance": "<proposé, à valider>"
+    "<backend>/<modèle>": {
+      "cas_historiques": {
+        "f1_global": {"valeurs": ["<mesuré>"], "mediane": "<mesuré>", "minimum": "<mesuré>",
+                      "maximum": "<mesuré>", "ecart_type": "<mesuré>"},
+        "composantes": {"dependency_mapper": {}, "risques": {}, "responsabilites": {}},
+        "tolerance": "<validé>",
+        "calcul_tolerance": {"methode": "max(max − min, 3σ) ; seuil = médiane − tolérance",
+                             "etendue": "...", "trois_sigma": "...", "tolerance": "...", "seuil": "..."},
+        "source": "<rapports, backend, réserves>"
+      },
+      "golden_dataset.json": {"...": "même structure, sur les 5 cas"}
     }
   },
-  "historical": {
-    "0.757": "3 cas, avant correction FIELD_PATTERN, non reproductible",
-    "0.802": "5 cas, avant correction FIELD_PATTERN, effet de composition du dataset"
+  "llm_note": "Aucun seuil LLM n'est le garde-fou de FIELD_PATTERN : c'est la comparaison déterministe.",
+  "speedup": {"valeur": 2.88, "seuil_minimum": 1.8, "backend": "anthropic/claude-haiku-4-5-20251001",
+              "mesure": "...", "source": "...", "historique": {"2.50": "..."}},
+  "historique": {
+    "0.757": {"perimetre": "3 cas", "note": "avant correction FIELD_PATTERN, non reproductible — jamais un seuil"},
+    "0.802": {"perimetre": "5 cas", "note": "avant correction FIELD_PATTERN — jamais un seuil"}
   }
 }
 ```
+
+  Le commit de chaque mesure figure dans les rapports cités (`eval/reports/`), pas au premier niveau : la baseline agrège des mesures de commits différents.
 
 - **Une baseline LLM par backend.** La valeur Ollama (médiane 0,808) existe déjà. Pour le backend utilisé en CI, exécute l'évaluation complète 3 fois, rapporte la médiane, l'étendue et la variance par composante, puis propose un seuil justifié. Je valide le seuil.
 - `.github/workflows/eval.yml` avec deux niveaux :
