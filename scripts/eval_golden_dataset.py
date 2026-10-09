@@ -289,7 +289,9 @@ def main() -> int:
             flux.reconfigure(encoding="utf-8", errors="replace")
 
     horodatage = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H%M%SZ")
-    base_nom = f"{horodatage}_{args.mode}"
+    # Le PID départage deux évaluations lancées dans la même seconde (ex. Ollama et Haiku
+    # en parallèle) : sans lui, elles écrivaient dans le même fichier de sortie brute.
+    base_nom = f"{horodatage}_{args.mode}_{os.getpid()}"
     try:
         if not args.jar.exists():
             raise ErreurEval(f"jar introuvable : {relatif(args.jar)} — lancer `mvn -f agent/pom.xml package`")
@@ -340,6 +342,10 @@ def main() -> int:
         ecrire_json(chemin_rapport, rapport)
         print(resume(rapport, baseline))
         print(f"  Rapport : {relatif(chemin_rapport)}")
+        # Alerte LLM : le job reste vert (non bloquant), mais l'écart est annoté dans GitHub.
+        if os.environ.get("GITHUB_ACTIONS") == "true" and verdict == "PASS_AVEC_ALERTE_LLM":
+            print(f"::warning::F1 global LLM sous le seuil de la baseline ({controles['llm']['backend']}), "
+                  f"voir {relatif(chemin_rapport)}")
         return 1 if controles["deterministe"]["statut"] == FAIL else 0
 
     except ErreurEval as e:
