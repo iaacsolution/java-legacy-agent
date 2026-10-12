@@ -129,10 +129,15 @@ Réponds précisément, en citant fichiers et lignes :
 **Livrables**
 - **Un module unique côté Java** (ex. package `governance`, classe `Redactor`), branché au point de passage unique vers les LLM identifié en exploration (cloud et on-prem), activable par config, actif par défaut. Les appels LLM partent du code Java : un module Python ne pourrait pas les intercepter.
 - Détection au minimum : mots de passe et tokens en dur, clés API, clés privées, URL JDBC avec identifiants, emails, IP internes. Bibliothèque existante si pertinente, sinon regex — justifie le choix.
-- Remplacement par des marqueurs stables `<REDACTED:TYPE:n>` (même secret → même marqueur) pour préserver la structure du code analysé.
-- La table de correspondance n'est **jamais** loggée, persistée ni envoyée.
+- Remplacement par des marqueurs stables `<REDACTED:TYPE:h>` (même secret → même marqueur) pour préserver la structure du code analysé.
+  - **Décision (09/10/2026)** : `h` = 8 premiers caractères hexadécimaux de HMAC-SHA256(clé, secret). La clé est tirée par `SecureRandom` au démarrage, gardée en mémoire seulement, jamais journalisée, persistée ni envoyée, et injectable dans les tests.
+  - **Aucune table de correspondance** : aucun usage ne l'exige (la réinjection des secrets dans le DAT ou le plan est exclue). Stabilité par processus, indépendante de l'ordre des workers.
+  - Les phases `analyze` et `report` tournent dans deux JVM, donc avec deux clés. Ce n'est pas un problème : `report` n'envoie que la sortie LLM d'`analyze`, déjà filtrée. Limite documentée : une phase `analyze` lancée sans redaction, ou un handoff antérieur au Lot 2, recevrait des marqueurs propres à la phase `report`. La clé n'est pas partagée entre JVM, et ne passe pas par une variable d'environnement.
 - Journalisation dans le flight recorder : **nombre** de détections par type et par fichier, jamais les valeurs.
 - Option de politique : `redact` (défaut) ou `block` (refuser l'envoi si détection).
+  - Configuration retenue : `LLM_REDACTION=on|off` (défaut `on`) et `LLM_REDACTION_POLICY=redact|block` (défaut `redact`). Une valeur inconnue est une erreur explicite.
+- **Garde cloud sur `analyzeJavaClass`** (décision du 09/10/2026) : vers un backend cloud, le code source brut est refusé sauf `ALLOW_CLOUD_RAW_CODE=true`. Le refus lève une exception et écrit un log ERROR qui nomme le drapeau ; il n'y a jamais de repli silencieux. Le job full CI positionne le drapeau, puisque le dataset est synthétique.
+  - **Évolution future** : envoyer le squelette AST en cloud, comme `analyzeJavaClassWithAst`, quand un budget permettra de remesurer la baseline Haiku.
 
 **Tests**
 - Fixtures Java contenant de faux secrets de chaque type.

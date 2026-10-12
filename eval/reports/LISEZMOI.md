@@ -10,6 +10,9 @@ explicitement (`git add -f`). Chaque `.json` est accompagné de la sortie brute 
 | `2026-10-09T100322Z_deterministic.json` + `_passage1.log` | composante déterministe cas1–cas5, dont cas4 5/0/0 et cas5 3/0/0 | `eval/baseline.json` |
 | `2026-10-09T100344Z_deterministic.json` + `_passage1.log` | **dégradation VOLONTAIRE** (extraction `implements` neutralisée, non commitée) : FAIL, code 1 ; cas1 monte à 0.769 | `README.md` |
 | `2026-10-09_field_pattern_avant_correctif/` | composante déterministe avec le `DependencyMapperAgent` d'avant correctif | `eval/baseline.json` (note « deterministe ») |
+| `2026-10-12_redos_avant_correctif/` | `RedactorReDoSTest` rejoué contre le Redactor d'avant correction : 7 entrées au-delà d'une seconde, 2 StackOverflowError sur 19 | `README.md` (Redaction, Limites) |
+| `2026-10-09T141528Z_full_17736.json` + `_passage1..3.log` | Lot 2 : 3 passages Ollama, 3 cas, **redaction active** — médiane 0.759115 (alerte PASS, seuil 0.686250) | rapport du Lot 2 |
+| `2026-10-09T143257Z_full_10160.json` + `_passage1..3.log` | Lot 2, contre-épreuve : 3 passages Ollama, **`LLM_REDACTION=off`** — médiane 0.759115 ; écart avec la série précédente non concluant statistiquement (seuil de détection ≈ 0.066) | rapport du Lot 2 |
 
 ## Où se mesure l'évaluation LLM
 
@@ -20,6 +23,20 @@ explicitement (`git add -f`). Chaque `.json` est accompagné de la sortie brute 
   déclenche uniquement par `workflow_dispatch`, sans déclencheur planifié.
 - **Pour le réactiver** : poser le secret Actions `ANTHROPIC_API_KEY` du dépôt, puis
   relancer par `workflow_dispatch`.
+
+## Baisse du F1 global observée au Lot 2 (2026-10-09)
+
+Les 6 passages Ollama du 2026-10-09 (`141528Z_full_17736` avec filtrage, `143257Z_full_10160`
+sans) sont **sous la médiane de la baseline Ollama** (0.808) : médiane 0.759115 dans les deux
+séries.
+- Le chemin `LLM_REDACTION=off` retire le décorateur : il équivaut au chemin d'avant le Lot 2.
+  La baisse est présente sans filtrage, elle n'est donc pas imputable à la redaction. La
+  neutralité du décorateur est établie par `DecoratorTransparencyTest`, pas par ces mesures.
+- Hypothèse : dérive de l'environnement. **Non démontrée.** L'empreinte du modèle servi a été
+  relevée par `/api/tags` pendant la session, identique à la baseline (`dae161e2…`), mais elle
+  n'est consignée ni dans ces rapports ni dans leurs sorties brutes : non vérifiable depuis le dépôt.
+- Action proposée, pas encore faite : rejouer la baseline avec une graine fixe et une
+  température à 0, si Ollama le permet.
 
 Réserve sur les deux rapports `100546Z_full_*` : passages démarrés sur le commit 026674c,
 rapports marqués a29ca36 (le script lisait le commit en fin de run, corrigé en ba32434) ;

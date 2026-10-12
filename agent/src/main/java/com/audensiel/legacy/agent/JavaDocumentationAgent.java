@@ -1,5 +1,6 @@
 package com.audensiel.legacy.agent;
 
+import com.audensiel.legacy.agent.governance.CloudRawCodeRefusedException;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.SystemMessage;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -138,20 +140,39 @@ public class JavaDocumentationAgent {
     private final MethodAnalyzer methodAnalyzer;
     private final DocumentationSynthesizer synthesizer;
 
-    public JavaDocumentationAgent(String ollamaBaseUrl) {
-        ChatLanguageModel coderModel = LlmModelFactory.create(ollamaBaseUrl, 0.1, Duration.ofMinutes(15));
-        ChatLanguageModel synthModel  = LlmModelFactory.create(ollamaBaseUrl, 0.3, Duration.ofMinutes(15));
+    private final Function<String, String> env;
 
+    public JavaDocumentationAgent(String ollamaBaseUrl) {
+        this(LlmModelFactory.create(ollamaBaseUrl, 0.1, Duration.ofMinutes(15)),
+             LlmModelFactory.create(ollamaBaseUrl, 0.3, Duration.ofMinutes(15)),
+             System::getenv);
+    }
+
+    /** Pour les tests : modèles et environnement fournis (aucun vrai LLM). */
+    JavaDocumentationAgent(ChatLanguageModel coderModel, ChatLanguageModel synthModel,
+                           Function<String, String> env) {
         this.codeAnalyzer     = AiServices.create(CodeAnalyzer.class, coderModel);
         this.skeletonAnalyzer = AiServices.create(SkeletonAnalyzer.class, coderModel);
         this.methodAnalyzer   = AiServices.create(MethodAnalyzer.class, coderModel);
         this.synthesizer      = AiServices.create(DocumentationSynthesizer.class, synthModel);
+        this.env              = env;
     }
 
     /**
      * Analyse un fichier Java et retourne les spécifications extraites.
+     *
+     * <p>Envoie le code source BRUT. Vers un backend cloud, c'est refusé sauf drapeau
+     * explicite {@code ALLOW_CLOUD_RAW_CODE=true} (réservé au code synthétique, ex. golden
+     * dataset du job CI complet) : exception et log ERROR, jamais de repli silencieux. La
+     * redaction des secrets s'applique dans tous les cas, en aval (RedactingChatModel).
      */
     public String analyzeJavaClass(String javaCode, String context, boolean strict, boolean withAst)    {
+        if (LlmModelFactory.isCloudActive(env)
+                && !Boolean.parseBoolean(env.apply(CloudRawCodeRefusedException.FLAG))) {
+            CloudRawCodeRefusedException refus = new CloudRawCodeRefusedException();
+            log.error(refus.getMessage());
+            throw refus;
+        }
         System.out.println("🔍 Analyse du code avec Qwen2.5-Coder...");
         return codeAnalyzer.analyzeCode(javaCode);
     }
@@ -166,18 +187,19 @@ public class JavaDocumentationAgent {
      * charge CPU sur le backend on-prem (Ollama sérialise ses requêtes).
      */
     public String analyzeJavaClassWithAst(AstParserAgent.AstAnalysis ast) {
-        boolean cloud = LlmModelFactory.isCloudActive();
+        boolean cloud = LlmModelFactory.isCloudActive(env);
         System.out.println("🔍 Analyse AST + LLM (squelette + méthodes lourdes) : " + ast.className()
                 + (cloud ? " [cloud — corps de méthode jamais envoyé, squelette anonymisé]" : ""));
 
         String payload = cloud ? ast.toAnonymizedPromptContext() : ast.toPromptContext();
 
-        // Log DEBUG (off par défaut, voir logback.xml) du payload EXACT envoyé au LLM, juste
-        // avant l'appel — vérifiable sans re-instrumenter au prochain audit sécurité. Ajouté après
-        // un round d'audit où le payload réel (squelette AST) s'est avéré vide à cause d'un bug de
-        // concurrence indépendant (JavaParser partagé entre workers, non thread-safe — voir
-        // AstParserAgent.newParser()) : ne jamais supposer que "l'intention du code" == "ce qui part".
-        log.debug("Payload envoyé au LLM (cloud={}, {} caractères) : {}", cloud, payload.length(), payload);
+        // Le payload EXACT envoyé au LLM est journalisé en DEBUG par RedactingChatModel, APRÈS
+        // redaction — c'est ce qui part réellement. Le journaliser ici, avant, aurait écrit les
+        // secrets en clair. Origine de ce log d'audit : un payload réel (squelette AST) s'était
+        // avéré vide à cause de JavaParser partagé entre workers (voir AstParserAgent.newParser()) :
+        // ne jamais supposer que "l'intention du code" == "ce qui part". Ici, seule la taille.
+        log.debug("Squelette préparé (cloud={}, {} caractères) — contenu journalisé après redaction",
+                cloud, payload.length());
 
         String skeletonSpecs = skeletonAnalyzer.analyzeSkeleton(payload);
 

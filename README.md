@@ -41,6 +41,17 @@ DependencyMapperAgent + AgentEvaluator
       "Golden dataset" below — not hardcoded anymore)
 ```
 
+## Gouvernance — état des lots
+
+Chantier décrit dans [`specs/gouvernance-spec.md`](specs/gouvernance-spec.md) : trois lots, livrés
+dans l'ordre 1 → 2 → 3.
+
+| Lot | Pilier | État | Où le lire |
+|---|---|---|---|
+| 1 | Cycle de vie : évaluation automatisée et CI | **Fusionné** dans `master` (PR #1) | section « Évaluation automatisée (CI) » |
+| 2 | Gestion des risques : redaction des secrets et PII avant tout LLM | **Fusionné** dans `master` (`gov/lot2-redaction`, fusion `--no-ff`) | section « Redaction des secrets et PII » |
+| 3 | Sécurité : matrice des droits par agent (`docs/GOVERNANCE.md`) | **À venir** | — |
+
 ## Measured metrics — revision
 
 Chaque chiffre ci-dessous porte **son backend** : ils ne sont pas interchangeables. Le speedup
@@ -213,6 +224,90 @@ Codes de sortie : `0` PASS (alerte LLM éventuelle signalée), `1` régression d
 Le verdict du rapport vaut `PASS`, `PASS_AVEC_ALERTE_LLM` ou `FAIL`. Le hook Stop de Claude
 Code (`.claude/hooks/check-golden-dataset.sh`) accepte `PASS_AVEC_ALERTE_LLM` comme un PASS,
 puisque l'alerte LLM ne bloque jamais. Il affiche l'alerte avec le chemin du rapport.
+
+## Redaction des secrets et PII (avant tout LLM)
+
+Chaque message envoyé à un LLM est filtré, **quel que soit le backend** (vLLM, Claude Haiku,
+Ollama), message système compris. Le filtre est un décorateur `RedactingChatModel`, posé par
+`LlmModelFactory.create()`, l'unique site de construction de modèle : il couvre ainsi les
+5 proxys `AiServices` du projet. Code : `agent/src/main/java/com/audensiel/legacy/agent/governance/`.
+
+| Variable | Valeurs | Effet |
+|---|---|---|
+| `LLM_REDACTION` | `on` (défaut) / `off` | `off` désactive le filtre et le signale par un WARN au démarrage |
+| `LLM_REDACTION_POLICY` | `redact` (défaut) / `block` | `block` refuse l'envoi (exception) dès qu'une valeur est détectée ; rien ne part |
+| `ALLOW_CLOUD_RAW_CODE` | absent (défaut) / `true` | sans lui, `analyzeJavaClass` refuse d'envoyer du code **brut** vers le cloud (exception + log ERROR) |
+
+Une valeur inconnue pour `LLM_REDACTION` ou `LLM_REDACTION_POLICY` est une erreur explicite,
+jamais un retour silencieux au défaut.
+
+**Types détectés**, appliqués dans cet ordre, chacun sur le texte déjà filtré par les
+précédents :
+1. clé privée (bloc `BEGIN … END`) ;
+2. identifiants d'URL JDBC (seuls les identifiants sont remplacés, pas l'URL entière) ;
+3. clés d'API (préfixes connus, puis affectation), mots de passe et jetons affectés à un littéral ;
+4. e-mails ;
+5. IP internes (10/8, 172.16/12, 192.168/16, 127/8).
+
+JDBC passe avant les e-mails parce que `user:pass@hôte` ressemble à une adresse e-mail. Les
+IP passent en dernier parce qu'une IP peut être l'hôte d'une URL JDBC.
+
+**Marqueur** : `<REDACTED:TYPE:h>`, où `h` est le HMAC-SHA256 tronqué du secret, calculé
+avec une clé aléatoire tirée au démarrage et gardée en mémoire seulement. Un même secret
+donne le même marqueur sur toute l'exécution. Il n'existe **aucune table de
+correspondance** : les documents produits (DAT, plan) contiennent des marqueurs, jamais les
+valeurs.
+
+**Flight recorder** : un span `redaction` par appel, fils du span `agent`, qui porte la
+classe analysée. Il ne contient que des nombres (`redaction.<TYPE>`, `redaction.total`) et
+la politique appliquée, jamais une valeur.
+
+**Limites — ce n'est pas une garantie absolue :**
+- Le filtre repose sur des expressions régulières : des **faux négatifs** restent possibles.
+  Exemples : secret construit dynamiquement, nom de variable neutre (`String x = "…"`),
+  format de clé inconnu, `getConnection(url, user, pass)` avec des variables.
+- **Non couverts** par les types ci-dessus : noms propres (`@author Jean Dupont`), noms
+  d'hôtes internes, URL de tickets.
+- **Faux positifs possibles** : un identifiant qui contient un mot-clé (`tokenizerName = "…"`)
+  est filtré.
+- **Quantificateurs bornés (anti-ReDoS)** : au-delà de ces longueurs, un motif n'est pas
+  reconnu (faux négatif). C'est la contrepartie d'un temps de traitement borné.
+
+  | Règle | Bornes |
+  |---|---|
+  | Affectation (`x = "…"`, `setX("…")`, `put("x", "…")`) | identifiant : 64 caractères avant et après le mot-clé ; valeur : 4 096 |
+  | Forme `x=…` dans un littéral | 512 caractères entre le guillemet ouvrant et l'identifiant ; valeur : 4 096 |
+  | Clé privée | corps : 16 384 caractères |
+  | URL JDBC | sous-protocole : 32 caractères, 4 segments `:x` au plus ; utilisateur et mot de passe : 256 chacun ; sous-protocole Oracle : 16 |
+  | E-mail | partie locale : 256 ; chaque label de domaine : 63 ; 10 labels au plus ; TLD : 2 à 24 lettres |
+
+  Sans ces bornes, `RedactorReDoSTest` (19 entrées piégées de 100 000 caractères, 1 s
+  maximum) échouait : **7 entrées dépassaient la seconde et 2 faisaient déborder la pile**.
+  Preuve : [`eval/reports/2026-10-12_redos_avant_correctif/`](eval/reports/2026-10-12_redos_avant_correctif/LISEZMOI.md).
+- **Effet sur la qualité d'analyse non mesuré.** Le golden dataset ne contient aucun secret :
+  la redaction n'y change rien, ce que prouvent `GoldenDatasetNoOpTest` (zéro détection) et
+  `DecoratorTransparencyTest` (requête identique avec et sans décorateur, sans LLM). Son F1
+  ne dit donc rien de l'analyse d'un code qui contient des secrets.
+- **Baisse du F1 global observée le jour de la livraison, cause non établie.** Les 6 passages
+  Ollama du 2026-10-09 sont **sous la médiane de la baseline** (0.808), avec comme sans
+  filtrage : médiane 0.759115 dans les deux séries (rapports dans
+  [`eval/reports/`](eval/reports/LISEZMOI.md)). Le chemin `LLM_REDACTION=off` retire le
+  décorateur : il équivaut au chemin d'avant le Lot 2. La baisse n'est donc pas imputable
+  au filtrage. Hypothèse : dérive de l'environnement, **non démontrée**. L'empreinte du
+  modèle servi a été relevée par `/api/tags` pendant la session, identique à celle de la
+  baseline, mais elle n'est pas consignée dans les rapports du jour : ce point n'est pas
+  vérifiable depuis le dépôt. Action proposée, pas encore faite : rejouer la baseline avec une graine fixe
+  et une température à 0, si Ollama le permet.
+- **Marqueurs différents d'une phase à l'autre.** `analyze` et `report` tournent dans deux
+  JVM, donc avec deux clés HMAC. Conséquence concrète : **un même secret ne porte pas le même
+  marqueur dans les deux phases**, et l'on ne peut pas recouper un marqueur de la phase
+  `report` avec un marqueur de la phase `analyze`.
+  - **Ce n'est pas un problème pour le rapport.** La phase `report` ne relit pas le code
+    source et ne reçoit que la sortie LLM d'`analyze`, déjà filtrée (`LegacyMigrationOrchestrator.java:302`,
+    `:330`, `:340`). Les marqueurs qu'elle transmet ont été posés par `analyze` ; elle n'en
+    pose pas de nouveaux, sauf dans les cas dégénérés ci-dessous.
+  - Cas dégénérés : un handoff produit avec `LLM_REDACTION=off` ou avant le Lot 2. Ses
+    valeurs seraient alors marquées avec la clé de `report`.
 
 ## Stack
 
