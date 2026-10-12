@@ -76,6 +76,13 @@ class RedactorTest {
         assertRedacted("relay " + IP_B + ".", Type.INTERNAL_IP, IP_B, "relay §.");
     }
 
+    @Test
+    @DisplayName("e-mail suivi d'un suffixe (« …@example.com-backup ») : l'adresse est filtrée")
+    void emailSuiviDUnSuffixe() throws Exception {
+        // Régression relevée en relecture : un lookahead final faisait rater ce cas (fuite).
+        assertRedacted(EMAIL + "-backup", Type.EMAIL, EMAIL, "§-backup");
+    }
+
     // ── JDBC et chevauchement de règles ─────────────────────────────────────
 
     @Test

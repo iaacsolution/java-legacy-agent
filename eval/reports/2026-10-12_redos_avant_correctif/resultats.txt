@@ -1,0 +1,19 @@
+  0.074s  ok                             [1] 100 000 caractères sans espace
+  1.011s  AssertionFailedError           [2] mot-clé répété sans fin, sans =
+  1.006s  AssertionFailedError           [3] mot-clé répété puis = sans littéral
+  1.008s  AssertionFailedError           [4] mot-clé répété puis = et guillemet non fermé
+  1.012s  AssertionFailedError           [5] forme setter sans littéral
+  1.017s  AssertionFailedError           [6] forme put("clé", …) sans valeur
+  0.100s  ok                             [7] littéral ouvert, mots-clés séparés, aucun =
+  1.011s  AssertionFailedError           [8] littéral ouvert, jeton répété
+  0.091s  ok                             [9] littéral ouvert, api_key répété
+  0.071s  ok                             [10] e-mail : local-part sans @
+  0.066s  StackOverflowError             [11] e-mail : domaine sans TLD valide
+  0.075s  ok                             [12] IP : octets répétés
+  0.058s  ok                             [13] JDBC : URL sans fin
+  0.081s  ok                             [14] JDBC : user:pass sans @
+  0.013s  ok                             [15] JDBC : paramètres répétés
+  0.013s  StackOverflowError             [16] JDBC : sous-protocoles répétés
+  1.017s  AssertionFailedError           [17] clé privée : BEGIN sans END, répété
+  0.014s  ok                             [18] préfixe sk- répété
+  0.098s  ok                             [19] guillemets alternés

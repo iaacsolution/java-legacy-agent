@@ -259,11 +259,20 @@ la politique appliquée, jamais une valeur.
   d'hôtes internes, URL de tickets.
 - **Faux positifs possibles** : un identifiant qui contient un mot-clé (`tokenizerName = "…"`)
   est filtré.
-- **Quantificateurs bornés (anti-ReDoS)** : un identifiant de plus de 64 caractères autour
-  du mot-clé, une valeur de plus de 4096 caractères ou un bloc de clé privée de plus de
-  16 384 caractères ne sont pas reconnus. C'est la contrepartie d'un temps de traitement
-  borné : sans ces bornes, une ligne minifiée de 100 000 caractères dépassait une seconde
-  par règle, ou faisait déborder la pile (`RedactorReDoSTest`).
+- **Quantificateurs bornés (anti-ReDoS)** : au-delà de ces longueurs, un motif n'est pas
+  reconnu (faux négatif). C'est la contrepartie d'un temps de traitement borné.
+
+  | Règle | Bornes |
+  |---|---|
+  | Affectation (`x = "…"`, `setX("…")`, `put("x", "…")`) | identifiant : 64 caractères avant et après le mot-clé ; valeur : 4 096 |
+  | Forme `x=…` dans un littéral | 512 caractères entre le guillemet ouvrant et l'identifiant ; valeur : 4 096 |
+  | Clé privée | corps : 16 384 caractères |
+  | URL JDBC | sous-protocole : 32 caractères, 4 segments `:x` au plus ; utilisateur et mot de passe : 256 chacun ; sous-protocole Oracle : 16 |
+  | E-mail | partie locale : 256 ; chaque label de domaine : 63 ; 10 labels au plus ; TLD : 2 à 24 lettres |
+
+  Sans ces bornes, `RedactorReDoSTest` (19 entrées piégées de 100 000 caractères, 1 s
+  maximum) échouait : **7 entrées dépassaient la seconde et 2 faisaient déborder la pile**.
+  Preuve : [`eval/reports/2026-10-12_redos_avant_correctif/`](eval/reports/2026-10-12_redos_avant_correctif/LISEZMOI.md).
 - **Effet sur la qualité d'analyse non mesuré.** Le golden dataset ne contient aucun secret :
   la redaction n'y change rien, ce que prouvent `GoldenDatasetNoOpTest` (zéro détection) et
   `DecoratorTransparencyTest` (requête identique avec et sans décorateur, sans LLM). Son F1
@@ -273,8 +282,10 @@ la politique appliquée, jamais une valeur.
   filtrage : médiane 0.759115 dans les deux séries (rapports dans
   [`eval/reports/`](eval/reports/LISEZMOI.md)). Le chemin `LLM_REDACTION=off` retire le
   décorateur : il équivaut au chemin d'avant le Lot 2. La baisse n'est donc pas imputable
-  au filtrage. Hypothèse : dérive de l'environnement (même empreinte de modèle), **non
-  démontrée**. Action proposée, pas encore faite : rejouer la baseline avec une graine fixe
+  au filtrage. Hypothèse : dérive de l'environnement, **non démontrée**. L'empreinte du
+  modèle servi a été relevée par `/api/tags` pendant la session, identique à celle de la
+  baseline, mais elle n'est pas consignée dans les rapports du jour : ce point n'est pas
+  vérifiable depuis le dépôt. Action proposée, pas encore faite : rejouer la baseline avec une graine fixe
   et une température à 0, si Ollama le permet.
 - **Marqueurs différents d'une phase à l'autre.** `analyze` et `report` tournent dans deux
   JVM, donc avec deux clés HMAC. Conséquence concrète : **un même secret ne porte pas le même

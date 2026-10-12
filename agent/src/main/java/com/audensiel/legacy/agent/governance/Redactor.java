@@ -119,7 +119,7 @@ public final class Redactor {
             // 4. E-mail — le caractère qui précède le local-part ne peut pas en faire partie
             //    (exclut « thin:@hôte » d'Oracle et un marqueur JDBC suivi de « @hôte »).
             new Rule(Type.EMAIL, Pattern.compile(
-                    "(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\\.[A-Za-z0-9-]{1,63}){0,8}\\.[A-Za-z]{2,24}(?![A-Za-z0-9-])"), 0),
+                    "(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,256}@[A-Za-z0-9-]{1,63}(?:\\.[A-Za-z0-9-]{1,63}){0,8}\\.[A-Za-z]{2,24}"), 0),
 
             // 5. IP internes (RFC 1918 + boucle locale). Octets ≤ 255 vérifiés ; une suite de
             //    plus de 4 nombres (numéro de version) ne correspond pas.
