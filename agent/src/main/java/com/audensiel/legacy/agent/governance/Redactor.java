@@ -73,14 +73,19 @@ public final class Redactor {
     private static final String MARKER_PREFIX = "<REDACTED:";
 
     // Valeur d'un littéral affecté : non vide, ni marqueur déjà posé, ni gabarit ${...}.
-    private static final String LITERAL_VALUE = "(?!<REDACTED:)(?!\\$\\{)([^\"\\r\\n]+)";
+    private static final String LITERAL_VALUE = "(?!<REDACTED:)(?!\\$\\{)([^\"\\r\\n]{1,4096})";
     // Caractères d'URL hors délimiteurs ; '<' et '>' exclus pour ne jamais capturer un marqueur.
     private static final String URL_CHARS = "[^\\s\"'<>@/:;&?]";
+    // Bornes anti-ReDoS : quantificateurs non bornés ⇒ retour arrière quadratique sur une
+    // ligne minifiée, ou StackOverflowError (Java implémente la répétition de groupe par
+    // récursion). Conséquence : un identifiant de plus de 64 caractères autour du mot-clé
+    // n'est pas reconnu (faux négatif accepté). Verrouillé par RedactorReDoSTest.
+    private static final String W = "\\w{0,64}";
 
     private static final List<Rule> RULES = List.of(
             // 1. Clé privée : tout le bloc BEGIN … END.
             new Rule(Type.PRIVATE_KEY, Pattern.compile(
-                    "-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----[\\s\\S]*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----"), 0),
+                    "-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----[\\s\\S]{0,16384}?-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----"), 0),
 
             // 2. JDBC — identifiants seuls, la structure de l'URL reste lisible.
             //    Paramètres d'URL user / password (forme « ? & » ou « ; » de SQL Server) EN PREMIER :
@@ -90,10 +95,10 @@ public final class Redactor {
                     "(?i)[?;&](?:user|username|password|pwd)=((?!<REDACTED:)[^&;\\s\"'<>]+)"), 1, v -> true),
             //    jdbc:mysql://user:pass@hôte — utilisateur ET mot de passe non vides.
             new Rule(Type.JDBC_CREDENTIALS, Pattern.compile(
-                    "jdbc:[A-Za-z0-9]+(?::[A-Za-z0-9]+)*://(" + URL_CHARS + "+:" + URL_CHARS + "+)@"), 1),
+                    "jdbc:[A-Za-z0-9]{1,32}(?::[A-Za-z0-9]{1,32}){0,4}://(" + URL_CHARS + "{1,256}:" + URL_CHARS + "{1,256})@"), 1),
             //    jdbc:oracle:thin:user/pass@hôte — « jdbc:oracle:thin:@hôte » (sans identifiants) ne correspond pas.
             new Rule(Type.JDBC_CREDENTIALS, Pattern.compile(
-                    "jdbc:oracle:[A-Za-z]+:(" + URL_CHARS + "+/" + URL_CHARS + "+)@"), 1),
+                    "jdbc:oracle:[A-Za-z]{1,16}:(" + URL_CHARS + "{1,256}/" + URL_CHARS + "{1,256})@"), 1),
 
             // 3a. Clés d'API à préfixe connu — en début de jeton uniquement
             //     (« disk-cache-… », « task-… », « risk-… » ne sont pas des clés sk-).
@@ -114,7 +119,7 @@ public final class Redactor {
             // 4. E-mail — le caractère qui précède le local-part ne peut pas en faire partie
             //    (exclut « thin:@hôte » d'Oracle et un marqueur JDBC suivi de « @hôte »).
             new Rule(Type.EMAIL, Pattern.compile(
-                    "(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,}"), 0),
+                    "(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\\.[A-Za-z0-9-]{1,63}){0,8}\\.[A-Za-z]{2,24}(?![A-Za-z0-9-])"), 0),
 
             // 5. IP internes (RFC 1918 + boucle locale). Octets ≤ 255 vérifiés ; une suite de
             //    plus de 4 nombres (numéro de version) ne correspond pas.
@@ -124,11 +129,11 @@ public final class Redactor {
     );
 
     private static Rule assignment(Type type, String keywords) {
-        String ident = "\\b\\w*(?:" + keywords + ")\\w*";
+        String ident = "\\b" + W + "(?:" + keywords + ")" + W;
         return new Rule(type, Pattern.compile(
                 "(?i)(?:" + ident + "\"?\\s*[=:]\\s*"            // x = "…" · x: "…" · "x": "…"
               + "|" + ident + "\\s*\\(\\s*"                      // setX("…")
-              + "|\"" + "\\w*(?:" + keywords + ")\\w*" + "\"\\s*,\\s*)"  // put("x", "…")
+              + "|\"" + W + "(?:" + keywords + ")" + W + "\"\\s*,\\s*)"  // put("x", "…")
               + "\"" + LITERAL_VALUE + "\""), 1);
     }
 
@@ -136,7 +141,7 @@ public final class Redactor {
         // « x=valeur » sans espace, à l'intérieur d'un littéral : la séquence doit suivre un
         // guillemet ouvrant sur la même ligne, sans autre guillemet entre les deux.
         return new Rule(type, Pattern.compile(
-                "(?i)\"[^\"\\r\\n]*?\\b\\w*(?:" + keywords + ")\\w*=((?!<REDACTED:)(?!\\$\\{)[^&;\"\\s]+)"), 1);
+                "(?i)\"[^\"\\r\\n]{0,512}?\\b" + W + "(?:" + keywords + ")" + W + "=((?!<REDACTED:)(?!\\$\\{)[^&;\"\\s]{1,4096})"), 1);
     }
 
     private static boolean isInternalIpv4(String candidate) {
