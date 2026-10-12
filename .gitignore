@@ -11,3 +11,7 @@ eval/reports/
 
 # Journaux d'exécution locaux (logback) : jamais suivis
 logs/
+
+# Fichiers de travail locaux à la racine (non versionnés)
+/body*.json
+/run_*.log

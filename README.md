@@ -41,6 +41,17 @@ DependencyMapperAgent + AgentEvaluator
       "Golden dataset" below — not hardcoded anymore)
 ```
 
+## Gouvernance — état des lots
+
+Chantier décrit dans [`specs/gouvernance-spec.md`](specs/gouvernance-spec.md) : trois lots, livrés
+dans l'ordre 1 → 2 → 3.
+
+| Lot | Pilier | État | Où le lire |
+|---|---|---|---|
+| 1 | Cycle de vie : évaluation automatisée et CI | **Fusionné** dans `master` (PR #1) | section « Évaluation automatisée (CI) » |
+| 2 | Gestion des risques : redaction des secrets et PII avant tout LLM | **Fusionné** dans `master` (`gov/lot2-redaction`, fusion `--no-ff`) | section « Redaction des secrets et PII » |
+| 3 | Sécurité : matrice des droits par agent (`docs/GOVERNANCE.md`) | **À venir** | — |
+
 ## Measured metrics — revision
 
 Chaque chiffre ci-dessous porte **son backend** : ils ne sont pas interchangeables. Le speedup
