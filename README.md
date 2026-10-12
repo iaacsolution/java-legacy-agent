@@ -259,13 +259,33 @@ la politique appliquée, jamais une valeur.
   d'hôtes internes, URL de tickets.
 - **Faux positifs possibles** : un identifiant qui contient un mot-clé (`tokenizerName = "…"`)
   est filtré.
+- **Quantificateurs bornés (anti-ReDoS)** : un identifiant de plus de 64 caractères autour
+  du mot-clé, une valeur de plus de 4096 caractères ou un bloc de clé privée de plus de
+  16 384 caractères ne sont pas reconnus. C'est la contrepartie d'un temps de traitement
+  borné : sans ces bornes, une ligne minifiée de 100 000 caractères dépassait une seconde
+  par règle, ou faisait déborder la pile (`RedactorReDoSTest`).
 - **Effet sur la qualité d'analyse non mesuré.** Le golden dataset ne contient aucun secret :
-  la redaction n'y change rien, ce que prouve le test `GoldenDatasetNoOpTest` (payload
-  identique avec et sans filtre, zéro détection). Son F1 ne dit donc rien de l'analyse d'un
-  code qui contient des secrets.
-- **Marqueurs différents d'une phase à l'autre** : `analyze` et `report` tournent dans deux
-  JVM, donc avec deux clés. La phase `report` ne reçoit que la sortie LLM d'`analyze`, déjà
-  filtrée ; mais un handoff produit sans redaction serait marqué avec la clé de `report`.
+  la redaction n'y change rien, ce que prouvent `GoldenDatasetNoOpTest` (zéro détection) et
+  `DecoratorTransparencyTest` (requête identique avec et sans décorateur, sans LLM). Son F1
+  ne dit donc rien de l'analyse d'un code qui contient des secrets.
+- **Baisse du F1 global observée le jour de la livraison, cause non établie.** Les 6 passages
+  Ollama du 2026-10-09 sont **sous la médiane de la baseline** (0.808), avec comme sans
+  filtrage : médiane 0.759115 dans les deux séries (rapports dans
+  [`eval/reports/`](eval/reports/LISEZMOI.md)). Le chemin `LLM_REDACTION=off` retire le
+  décorateur : il équivaut au chemin d'avant le Lot 2. La baisse n'est donc pas imputable
+  au filtrage. Hypothèse : dérive de l'environnement (même empreinte de modèle), **non
+  démontrée**. Action proposée, pas encore faite : rejouer la baseline avec une graine fixe
+  et une température à 0, si Ollama le permet.
+- **Marqueurs différents d'une phase à l'autre.** `analyze` et `report` tournent dans deux
+  JVM, donc avec deux clés HMAC. Conséquence concrète : **un même secret ne porte pas le même
+  marqueur dans les deux phases**, et l'on ne peut pas recouper un marqueur de la phase
+  `report` avec un marqueur de la phase `analyze`.
+  - **Ce n'est pas un problème pour le rapport.** La phase `report` ne relit pas le code
+    source et ne reçoit que la sortie LLM d'`analyze`, déjà filtrée (`LegacyMigrationOrchestrator.java:302`,
+    `:330`, `:340`). Les marqueurs qu'elle transmet ont été posés par `analyze` ; elle n'en
+    pose pas de nouveaux, sauf dans les cas dégénérés ci-dessous.
+  - Cas dégénérés : un handoff produit avec `LLM_REDACTION=off` ou avant le Lot 2. Ses
+    valeurs seraient alors marquées avec la clé de `report`.
 
 ## Stack
 

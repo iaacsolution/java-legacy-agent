@@ -23,6 +23,19 @@ explicitement (`git add -f`). Chaque `.json` est accompagné de la sortie brute 
 - **Pour le réactiver** : poser le secret Actions `ANTHROPIC_API_KEY` du dépôt, puis
   relancer par `workflow_dispatch`.
 
+## Baisse du F1 global observée au Lot 2 (2026-10-09)
+
+Les 6 passages Ollama du 2026-10-09 (`141528Z_full_17736` avec filtrage, `143257Z_full_10160`
+sans) sont **sous la médiane de la baseline Ollama** (0.808) : médiane 0.759115 dans les deux
+séries.
+- Le chemin `LLM_REDACTION=off` retire le décorateur : il équivaut au chemin d'avant le Lot 2.
+  La baisse est présente sans filtrage, elle n'est donc pas imputable à la redaction. La
+  neutralité du décorateur est établie par `DecoratorTransparencyTest`, pas par ces mesures.
+- Hypothèse : dérive de l'environnement (empreinte du modèle identique à la baseline,
+  `dae161e2…`). **Non démontrée.**
+- Action proposée, pas encore faite : rejouer la baseline avec une graine fixe et une
+  température à 0, si Ollama le permet.
+
 Réserve sur les deux rapports `100546Z_full_*` : passages démarrés sur le commit 026674c,
 rapports marqués a29ca36 (le script lisait le commit en fin de run, corrigé en ba32434) ;
 aucun fichier Java ne diffère entre ces deux commits.
