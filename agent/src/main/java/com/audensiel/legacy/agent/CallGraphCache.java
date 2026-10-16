@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
  *
  * Format .callgraph-cache.json :
  * {
- *   "version": 2,
- *   "hashes": { "path/File.java": "d41d8cd98f00b204e9800998ecf8427e" },
+ *   "version": 3,
+ *   "hashes": { "chemin/relatif/au/projet/File.java": "d41d8cd98f00b204e9800998ecf8427e" },
  *   "callers": { "Class.method": ["Caller.m:12"] }
  * }
  */
@@ -28,8 +28,65 @@ public class CallGraphCache {
             Map<String, List<String>> callers
     ) {}
 
-    // ── API publique ──────────────────────────────────────────────────────────
+    // ── Emplacement et clés (Lot 3) ───────────────────────────────────────────
 
+    /**
+     * Fichier de cache propre AU PROJET analysé, sous le dossier d'état. Avant le Lot 3, un
+     * seul fichier par grand-parent : deux projets voisins partageaient leur graphe.
+     */
+    public static Path cacheFileFor(Path stateDir, Path projectRoot) {
+        String key = projectRoot.toAbsolutePath().normalize().toString();
+        try {
+            byte[] d = MessageDigest.getInstance("SHA-256").digest(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return stateDir.resolve("callgraph").resolve(java.util.HexFormat.of().formatHex(d, 0, 8) + ".json");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponible", e);
+        }
+    }
+
+    /**
+     * MD5 du contenu de chaque fichier, clé = chemin RELATIF au projet, séparateur « / ».
+     * Avant le Lot 3 : chemin absolu, dont les antislashs Windows étaient doublés à
+     * l'écriture et jamais rétablis à la lecture — sous Windows, le cache n'était donc
+     * jamais valide.
+     */
+    public static Map<String, String> hashesOf(Path projectRoot, List<Path> files) {
+        Map<String, String> hashes = new TreeMap<>();
+        for (Path f : files) {
+            hashes.put(projectRoot.relativize(f).toString().replace('\\', '/'), md5(f));
+        }
+        return hashes;
+    }
+
+    public static Optional<CacheEntry> loadFile(Path cacheFile) {
+        if (!Files.exists(cacheFile)) return Optional.empty();
+        try {
+            String json = Files.readString(cacheFile);
+            Map<String, String> hashes  = parseHashes(json);
+            Map<String, List<String>> callers = parseCallers(json);
+            System.out.println("[Cache] Chargé : " + hashes.size() + " fichiers (MD5), "
+                    + callers.size() + " méthodes");
+            return Optional.of(new CacheEntry(hashes, callers));
+        } catch (Exception e) {
+            System.out.println("[Cache] Illisible — scan complet : " + e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    public static void saveFile(Path cacheFile, Map<String, String> hashes, Map<String, List<String>> callers) {
+        try {
+            Files.createDirectories(cacheFile.getParent());
+        } catch (IOException e) {
+            System.out.println("[Cache] ERREUR création du dossier d'état : " + e.getMessage());
+            return;
+        }
+        writeCache(cacheFile, hashes, callers);
+    }
+
+    // ── API historique (emplacement d'avant le Lot 3) — plus utilisée par CallGraphAgent ──
+
+    /** @deprecated emplacement d'avant le Lot 3 (dossier fourni) ; utiliser {@link #loadFile}. */
+    @Deprecated
     public static Optional<CacheEntry> load(Path projectRoot) {
         Path cacheFile = projectRoot.resolve(CACHE_FILE);
         if (!Files.exists(cacheFile)) return Optional.empty();
@@ -46,13 +103,19 @@ public class CallGraphCache {
         }
     }
 
+    /** @deprecated emplacement d'avant le Lot 3 (dossier fourni) ; utiliser {@link #saveFile}. */
+    @Deprecated
     public static void save(Path projectRoot, Map<String, String> hashes,
                             Map<String, List<String>> callers) {
-        Path cacheFile = projectRoot.resolve(CACHE_FILE);
+        writeCache(projectRoot.resolve(CACHE_FILE), hashes, callers);
+    }
+
+    private static void writeCache(Path cacheFile, Map<String, String> hashes,
+                                   Map<String, List<String>> callers) {
         System.out.println("[Cache] Sauvegarde → " + cacheFile);
         try {
             StringBuilder json = new StringBuilder();
-            json.append("{\n  \"version\": 2,\n");
+            json.append("{\n  \"version\": 3,\n");
 
             json.append("  \"hashes\": {\n");
             List<String> hEntries = hashes.entrySet().stream()

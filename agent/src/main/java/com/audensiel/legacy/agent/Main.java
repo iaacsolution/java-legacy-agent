@@ -119,9 +119,8 @@ public class Main {
 
             // Log CSV ROI depuis Java (Linux Docker → pas de CRLF Windows)
             if (report.isBreaking()) {
-                Path csvRoot = projectPath.getParent() != null
-                        ? projectPath.getParent().getParent() : projectPath;
-                RoiLogger.log(csvRoot, report);
+                // Dossier d'état (AGENT_STATE_DIR), plus le grand-parent du projet analysé.
+                RoiLogger.log(StateDir.resolve(projectPath), report);
                 System.exit(1);
             }
 

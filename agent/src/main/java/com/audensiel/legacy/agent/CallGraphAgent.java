@@ -39,59 +39,66 @@ public class CallGraphAgent {
     // Même correctif qu'AstParserAgent.newParser() (commit 4128e54) : une instance par
     // appel supprime l'état partagé. Surtout PAS de verrou partagé — ce serait revenir
     // sur ce correctif, et sérialiser un objet dont la recréation est négligeable.
+    private final java.util.function.Function<String, String> env;
+
+    public CallGraphAgent() {
+        this(System::getenv);
+    }
+
+    /** Environnement injectable (AGENT_STATE_DIR) — pour les tests. */
+    CallGraphAgent(java.util.function.Function<String, String> env) {
+        this.env = env;
+    }
+
     private JavaParser newParser() {
         return new JavaParser(PARSER_CONFIG);
     }
 
+    /**
+     * Construit le graphe, avec un cache utilisé SEULEMENT si le contenu de TOUS les fichiers
+     * est identique (MD5) et qu'aucun fichier n'a été ajouté ni supprimé. Au moindre
+     * changement : scan complet.
+     *
+     * <p>Avant le Lot 3, un rescan incrémental des seuls fichiers modifiés perdait des appels :
+     * les méthodes cibles n'étaient cherchées que dans les fichiers rescannés (un appel depuis
+     * un fichier modifié vers un fichier inchangé disparaissait), la purge supprimait une
+     * entrée entière dès qu'un seul de ses appelants changeait, et un fichier supprimé
+     * gardait ses appels. Un appelant manquant fait passer un changement cassant pour sûr :
+     * la justesse prime sur le gain de temps.
+     */
     public CallGraph buildCallGraph(Path projectRoot) throws IOException {
-        List<Path> javaFiles = Files.walk(projectRoot)
-                .filter(p -> p.toString().endsWith(".java"))
-                .collect(Collectors.toList());
+        List<Path> javaFiles;
+        try (var stream = Files.walk(projectRoot)) {
+            javaFiles = stream.filter(p -> p.toString().endsWith(".java")).sorted().collect(Collectors.toList());
+        }
 
         System.out.println("[CallGraph] " + javaFiles.size() + " fichiers Java trouvés dans " + projectRoot);
 
-        // Cache à la racine du volume monté (parent du src/) pour éviter les problèmes de droits
-        Path cacheRoot = projectRoot.getParent() != null ? projectRoot.getParent().getParent() : projectRoot;
-        Optional<CallGraphCache.CacheEntry> cacheOpt = CallGraphCache.load(cacheRoot);
-        Map<String, List<String>> callers;
-        Map<String, String> hashes;
+        // Dossier d'état hors du projet analysé (refus explicite sinon), cache propre au projet.
+        Path stateDir = StateDir.resolve(projectRoot, env);
+        StateDir.warnLegacyArtifacts(projectRoot);
+        Path cacheFile = CallGraphCache.cacheFileFor(stateDir, projectRoot);
 
-        if (cacheOpt.isPresent()) {
-            CallGraphCache.CacheEntry cache = cacheOpt.get();
-            List<Path> stale = CallGraphCache.staleFiles(cache.fileHashes(), javaFiles);
+        Map<String, String> hashes = CallGraphCache.hashesOf(projectRoot, javaFiles);
+        Optional<CallGraphCache.CacheEntry> cacheOpt = CallGraphCache.loadFile(cacheFile);
 
-            if (stale.isEmpty()) {
-                System.out.println("[CallGraph] Cache valide — 0 fichier modifié (scan ignoré)");
-                return new CallGraph(cache.callers());
-            }
-
-            System.out.println("[CallGraph] Cache partiel — " + stale.size() + " fichier(s) à re-scanner");
-            callers = new LinkedHashMap<>(cache.callers());
-            hashes  = new LinkedHashMap<>(cache.fileHashes());
-
-            for (Path staleFile : stale) {
-                hashes.remove(staleFile.toString());
-                String fname = staleFile.getFileName().toString().replace(".java", "");
-                callers.entrySet().removeIf(e ->
-                        e.getKey().startsWith(fname + ".") ||
-                        e.getValue().removeIf(c -> c.startsWith(fname + ".")));
-            }
-            scanFiles(stale, callers, hashes);
-
-        } else {
-            System.out.println("[CallGraph] Pas de cache — scan complet");
-            callers = new LinkedHashMap<>();
-            hashes  = new LinkedHashMap<>();
-            scanFiles(javaFiles, callers, hashes);
+        if (cacheOpt.isPresent() && cacheOpt.get().fileHashes().equals(hashes)) {
+            System.out.println("[CallGraph] Cache valide — contenu identique (scan ignoré)");
+            return new CallGraph(cacheOpt.get().callers());
         }
 
-        CallGraphCache.save(cacheRoot, hashes, callers);
+        System.out.println(cacheOpt.isPresent()
+                ? "[CallGraph] Contenu modifié, ajouté ou supprimé — scan complet"
+                : "[CallGraph] Pas de cache — scan complet");
+        Map<String, List<String>> callers = new LinkedHashMap<>();
+        scanFiles(javaFiles, callers);
+
+        CallGraphCache.saveFile(cacheFile, hashes, callers);
         System.out.println("[CallGraph] " + callers.size() + " méthodes indexées — cache sauvegardé");
         return new CallGraph(callers);
     }
 
-    private void scanFiles(List<Path> files, Map<String, List<String>> callers,
-                           Map<String, String> hashes) throws IOException {
+    private void scanFiles(List<Path> files, Map<String, List<String>> callers) throws IOException {
 
         // Étape 1 — collecter les déclarations de méthodes dans les fichiers scannés
         Set<String> allMethods = new HashSet<>();
@@ -103,7 +110,6 @@ public class CallGraphAgent {
                 if (result.isSuccessful() && result.getResult().isPresent()) {
                     CompilationUnit cu = result.getResult().get();
                     parsedFiles.put(file, cu);
-                    hashes.put(file.toString(), CallGraphCache.md5(file));
                     cu.findAll(MethodDeclaration.class).forEach(m -> {
                         String className = m.findAncestor(
                                 com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class)

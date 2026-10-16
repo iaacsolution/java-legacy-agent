@@ -35,8 +35,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * attribuable.
  *
  * <p>Chaque appel reçoit son <strong>propre répertoire</strong>, pour deux raisons : le cache
- * de {@code buildCallGraph} s'écrit dans {@code projectRoot.getParent().getParent()} (des
- * répertoires communs les feraient se marcher dessus), et surtout un second appel sur le même
+ * de {@code buildCallGraph} est propre à chaque projet (sous {@code AGENT_STATE_DIR}, ici un
+ * dossier temporaire du test), et surtout un second appel sur le même
  * répertoire sortirait sur « cache valide » <em>sans parser</em> — ce qui masquerait la course
  * que le test cherche justement à provoquer.
  *
@@ -70,6 +70,12 @@ class CallGraphAgentConcurrencyTest {
      * projectRoot. Le double niveau est imposé par le calcul du cacheRoot dans
      * {@code buildCallGraph}.
      */
+    /** Dossier d'état du test : jamais le répertoire courant (agent/ sous surefire). */
+    private static java.util.function.Function<String, String> etat(Path base) {
+        Path dir = base.resolve("etat");
+        return k -> StateDir.ENV.equals(k) ? dir.toString() : null;
+    }
+
     private static Path projet(Path base, String nom) throws Exception {
         Path src = base.resolve(nom).resolve("wrapper").resolve("src");
         Files.createDirectories(src);
@@ -96,7 +102,7 @@ class CallGraphAgentConcurrencyTest {
 
         // ── Référence : un appel seul, sur un agent neuf ────────────────────
         Map<String, List<String>> reference =
-                normalise(new CallGraphAgent().buildCallGraph(projet(base, "reference")));
+                normalise(new CallGraphAgent(etat(base)).buildCallGraph(projet(base, "reference")));
 
         assertFalse(reference.isEmpty(), "la référence doit contenir des appels — sinon le test ne prouve rien");
         assertEquals(CLASSES * 2, reference.size(),
@@ -110,7 +116,7 @@ class CallGraphAgentConcurrencyTest {
         }
 
         // ── L'instance PARTAGÉE : seul état mutable commun aux 4 threads ────
-        CallGraphAgent agentPartage = new CallGraphAgent();
+        CallGraphAgent agentPartage = new CallGraphAgent(etat(base));
 
         ByteArrayOutputStream capture = new ByteArrayOutputStream();
         PrintStream sortieOriginale = System.out;
@@ -177,7 +183,7 @@ class CallGraphAgentConcurrencyTest {
     @Test
     @DisplayName("un appel isolé produit un graphe complet — garde-fou de la référence")
     void appelIsoleProduitUnGrapheComplet(@TempDir Path base) throws Exception {
-        Map<String, List<String>> g = normalise(new CallGraphAgent().buildCallGraph(projet(base, "solo")));
+        Map<String, List<String>> g = normalise(new CallGraphAgent(etat(base)).buildCallGraph(projet(base, "solo")));
 
         assertEquals(CLASSES * 2, g.size());
         for (int i = 0; i < CLASSES; i++) {

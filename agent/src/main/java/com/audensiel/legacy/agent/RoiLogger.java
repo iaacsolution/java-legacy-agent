@@ -17,9 +17,11 @@ public class RoiLogger {
     private static final String CSV_HEADER =
             "timestamp,class,method,severity,callers_count,callers,blocked,strategy,duration_ms\n";
 
+    /** @param projectRoot dossier où écrire le CSV — le dossier d'état ({@link StateDir}) depuis le Lot 3. */
     public static void log(Path projectRoot, BreakingChangeDetector.BreakingChangeReport report) {
         Path csv = projectRoot.resolve("impact-roi.csv");
         try {
+            Files.createDirectories(projectRoot);
             if (!Files.exists(csv)) {
                 Files.writeString(csv, CSV_HEADER, StandardOpenOption.CREATE);
             }
