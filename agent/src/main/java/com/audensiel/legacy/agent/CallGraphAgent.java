@@ -31,14 +31,6 @@ public class CallGraphAgent {
     private static final ParserConfiguration PARSER_CONFIG = new ParserConfiguration()
             .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
 
-    // JavaParser n'est pas thread-safe : une instance partagée entre appels concurrents
-    // provoque des échecs de parsing — observés ici sous la forme d'un
-    // java.lang.AssertionError « A reference was unexpectedly null » venant des entrailles
-    // de JavaParser. Comme c'est une Error et non une Exception, le catch de scanFiles ne
-    // la retient même pas : elle fait tomber l'analyse entière.
-    // Même correctif qu'AstParserAgent.newParser() (commit 4128e54) : une instance par
-    // appel supprime l'état partagé. Surtout PAS de verrou partagé — ce serait revenir
-    // sur ce correctif, et sérialiser un objet dont la recréation est négligeable.
     private final java.util.function.Function<String, String> env;
 
     public CallGraphAgent() {
@@ -50,6 +42,14 @@ public class CallGraphAgent {
         this.env = env;
     }
 
+    // JavaParser n'est pas thread-safe : une instance partagée entre appels concurrents
+    // provoque des échecs de parsing — observés ici sous la forme d'un
+    // java.lang.AssertionError « A reference was unexpectedly null » venant des entrailles
+    // de JavaParser. Comme c'est une Error et non une Exception, le catch de scanFiles ne
+    // la retient même pas : elle fait tomber l'analyse entière.
+    // Même correctif qu'AstParserAgent.newParser() (commit 4128e54) : une instance par
+    // appel supprime l'état partagé. Surtout PAS de verrou partagé — ce serait revenir
+    // sur ce correctif, et sérialiser un objet dont la recréation est négligeable.
     private JavaParser newParser() {
         return new JavaParser(PARSER_CONFIG);
     }

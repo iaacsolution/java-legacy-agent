@@ -65,17 +65,17 @@ class CallGraphAgentConcurrencyTest {
                """.formatted(i, i, i, i, i, i, i);
     }
 
-    /**
-     * Crée {@code <base>/<nom>/wrapper/src} peuplé de CLASSES fichiers, et rend le
-     * projectRoot. Le double niveau est imposé par le calcul du cacheRoot dans
-     * {@code buildCallGraph}.
-     */
     /** Dossier d'état du test : jamais le répertoire courant (agent/ sous surefire). */
     private static java.util.function.Function<String, String> etat(Path base) {
         Path dir = base.resolve("etat");
         return k -> StateDir.ENV.equals(k) ? dir.toString() : null;
     }
 
+    /**
+     * Crée {@code <base>/<nom>/wrapper/src} peuplé de CLASSES fichiers, et rend le
+     * projectRoot. Chaque projet a son propre cache (sous le dossier d'état, clé = chemin
+     * du projet) : deux noms distincts ne partagent jamais de cache.
+     */
     private static Path projet(Path base, String nom) throws Exception {
         Path src = base.resolve(nom).resolve("wrapper").resolve("src");
         Files.createDirectories(src);
@@ -200,7 +200,8 @@ class CallGraphAgentConcurrencyTest {
         Path a = projet(base, "a");
         Path b = projet(base, "b");
         assertNotEquals(a, b);
-        assertNotEquals(a.getParent().getParent(), b.getParent().getParent(),
-                "les cacheRoot doivent différer, sinon les caches se recouvrent");
+        Path etat = base.resolve("etat");
+        assertNotEquals(CallGraphCache.cacheFileFor(etat, a), CallGraphCache.cacheFileFor(etat, b),
+                "un fichier de cache par projet, sinon les caches se recouvrent");
     }
 }

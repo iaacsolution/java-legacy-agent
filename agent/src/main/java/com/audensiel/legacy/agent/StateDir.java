@@ -44,12 +44,35 @@ public final class StateDir {
                 : Path.of(configured);
         dir = dir.toAbsolutePath().normalize();
         Path project = analyzedProject.toAbsolutePath().normalize();
-        if (dir.startsWith(project)) {
+        // Comparaison sur les chemins RÉELS (liens symboliques résolus) en plus des chemins
+        // normalisés : un lien hors du projet qui pointe dedans ne doit pas contourner le refus.
+        if (dir.startsWith(project) || cheminReel(dir).startsWith(cheminReel(project))) {
             throw new IllegalStateException(ENV + " (" + dir + ") est à l'intérieur du projet analysé ("
                     + project + ") : l'outil n'écrit jamais dans le dépôt qu'il analyse. "
                     + "Définir " + ENV + " hors du projet.");
         }
         return dir;
+    }
+
+    /**
+     * Chemin réel, liens symboliques résolus. Le dossier d'état peut ne pas exister encore :
+     * on résout le plus proche ancêtre existant, puis on lui recolle la partie restante.
+     */
+    static Path cheminReel(Path p) {
+        Path existant = p;
+        Path reste = null;
+        while (existant != null && !Files.exists(existant)) {
+            Path nom = existant.getFileName();
+            reste = reste == null ? nom : nom.resolve(reste);
+            existant = existant.getParent();
+        }
+        if (existant == null) return p;
+        try {
+            Path reel = existant.toRealPath();
+            return reste == null ? reel : reel.resolve(reste).normalize();
+        } catch (java.io.IOException e) {
+            return p;   // illisible : la comparaison normalisée, faite en amont, reste en vigueur
+        }
     }
 
     /**

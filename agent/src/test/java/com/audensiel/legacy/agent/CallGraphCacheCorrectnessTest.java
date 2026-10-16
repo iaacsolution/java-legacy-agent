@@ -106,6 +106,32 @@ class CallGraphCacheCorrectnessTest {
     }
 
     @Test
+    @DisplayName("AGENT_STATE_DIR via un lien symbolique qui pointe DANS le projet : refusé aussi")
+    void etatDansLeProjetViaLienRefuse(@TempDir Path base) throws IOException {
+        Path src = projet(base.resolve("p"));
+        Path lien = base.resolve("lien-vers-src");
+        try {
+            Files.createSymbolicLink(lien, src);
+        } catch (IOException | UnsupportedOperationException e) {
+            // Windows sans mode développeur ni droits d'administration : pas de lien possible.
+            org.junit.jupiter.api.Assumptions.abort("liens symboliques indisponibles ici : " + e.getClass().getSimpleName());
+        }
+        Path etat = lien.resolve(".etat");   // hors du projet en apparence, dedans en réalité
+
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> agent(etat).buildCallGraph(src));
+        assertTrue(e.getMessage().contains("AGENT_STATE_DIR"));
+        assertFalse(Files.exists(src.resolve(".etat")), "rien ne doit être écrit dans le projet");
+    }
+
+    @Test
+    @DisplayName("chemin réel d'un dossier encore inexistant : ancêtre existant résolu, reste recollé")
+    void cheminReelDossierInexistant(@TempDir Path base) throws IOException {
+        Path absent = base.resolve("a/b/c");
+        assertEquals(base.toRealPath().resolve("a/b/c"), StateDir.cheminReel(absent));
+    }
+
+    @Test
     @DisplayName("anciens fichiers du grand-parent : signalés, jamais supprimés ni modifiés")
     void orphelinsSignalesNonSupprimes(@TempDir Path base) throws IOException {
         Path src = projet(base.resolve("p"));          // grand-parent de src = base
