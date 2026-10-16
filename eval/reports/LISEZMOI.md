@@ -11,6 +11,9 @@ explicitement (`git add -f`). Chaque `.json` est accompagné de la sortie brute 
 | `2026-10-09T100344Z_deterministic.json` + `_passage1.log` | **dégradation VOLONTAIRE** (extraction `implements` neutralisée, non commitée) : FAIL, code 1 ; cas1 monte à 0.769 | `README.md` |
 | `2026-10-09_field_pattern_avant_correctif/` | composante déterministe avec le `DependencyMapperAgent` d'avant correctif | `eval/baseline.json` (note « deterministe ») |
 | `2026-10-12_redos_avant_correctif/` | `RedactorReDoSTest` rejoué contre le Redactor d'avant correction : 7 entrées au-delà d'une seconde, 2 StackOverflowError sur 19 | `README.md` (Redaction, Limites) |
+| `2026-10-16T130140Z_full_55436.json` + `_passage1..3.log`, `2026-10-16_lot3_avant_api_{tags,ps}.json` | Lot 3, **avant** (code de master `4212b0e`) : 3 passages Ollama, 3 cas — médiane 0.773256 ; empreinte du modèle consignée (`dae161e2…`) | rapport du Lot 3 |
+| `2026-10-16T132348Z_full_55500.json` + `_passage1..3.log`, `2026-10-16_lot3_apres_api_{tags,ps}.json` | Lot 3, **après** (`fce3f9d`) : médiane 0.777633 ; composante déterministe identique ; écart +0.004 (< 0.09 : pas de conclusion) ; même empreinte | rapport du Lot 3 |
+| `2026-10-16_hook_image_absente/` | hook face à l'image absente (avant / après), puis bout en bout sur `java-legacy-agent-java-analyzer` | `docs/GOVERNANCE.md` (E6) |
 | `2026-10-09T141528Z_full_17736.json` + `_passage1..3.log` | Lot 2 : 3 passages Ollama, 3 cas, **redaction active** — médiane 0.759115 (alerte PASS, seuil 0.686250) | rapport du Lot 2 |
 | `2026-10-09T143257Z_full_10160.json` + `_passage1..3.log` | Lot 2, contre-épreuve : 3 passages Ollama, **`LLM_REDACTION=off`** — médiane 0.759115 ; écart avec la série précédente non concluant statistiquement (seuil de détection ≈ 0.066) | rapport du Lot 2 |
 
