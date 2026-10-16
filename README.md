@@ -44,13 +44,14 @@ DependencyMapperAgent + AgentEvaluator
 ## Gouvernance — état des lots
 
 Chantier décrit dans [`specs/gouvernance-spec.md`](specs/gouvernance-spec.md) : trois lots, livrés
-dans l'ordre 1 → 2 → 3.
+dans l'ordre 1 → 2 → 3. Matrice des droits par composant, écarts au moindre privilège et état
+honnête des 4 piliers : **[`docs/GOVERNANCE.md`](docs/GOVERNANCE.md)**.
 
 | Lot | Pilier | État | Où le lire |
 |---|---|---|---|
 | 1 | Cycle de vie : évaluation automatisée et CI | **Fusionné** dans `master` (PR #1) | section « Évaluation automatisée (CI) » |
 | 2 | Gestion des risques : redaction des secrets et PII avant tout LLM | **Fusionné** dans `master` (`gov/lot2-redaction`, fusion `--no-ff`) | section « Redaction des secrets et PII » |
-| 3 | Sécurité : matrice des droits par agent (`docs/GOVERNANCE.md`) | **À venir** | — |
+| 3 | Sécurité : matrice des droits par agent | **Livré sur `gov/lot3-permissions`**, pas encore fusionné | [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) : matrice, écarts, état des 4 piliers |
 
 ## Measured metrics — revision
 

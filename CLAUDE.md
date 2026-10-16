@@ -40,6 +40,14 @@ Observabilité : Prometheus (Pushgateway) / Grafana / Phoenix OTEL
   `python scripts/eval_golden_dataset.py --mode deterministic` (sans LLM, **seul contrôle
   bloquant**, TP/FP/FN exacts) ou `--mode full [--passes N]` (backend actif, alerte non
   bloquante). Rapports dans `eval/reports/`. CI : `.github/workflows/eval.yml`.
+- État de l'outil (cache du call graph, `impact-roi.csv`) : `AGENT_STATE_DIR`, par défaut
+  `.java-legacy-agent/` du répertoire courant. **Jamais dans le projet analysé** (refus
+  explicite). Plus rien n'est écrit dans le grand-parent du projet.
+- Moindre privilège : `AccessAllowlistTest` liste les classes autorisées à écrire ou lire
+  sur disque, ouvrir le réseau, construire un modèle LLM, lire l'environnement. Toute
+  modification de cette liste impose de mettre à jour la matrice de `docs/GOVERNANCE.md`.
+- Hooks d'impact : `sh hooks/test-impact-lib.sh` (faux docker). Après fusion dans master,
+  réinstaller le pre-commit : `cp hooks/pre-commit .git/hooks/pre-commit`.
 - Redaction avant tout LLM (package `governance`, posée par `LlmModelFactory.create()` sur
   les 3 backends) : `LLM_REDACTION=on|off` (défaut `on`), `LLM_REDACTION_POLICY=redact|block`
   (défaut `redact`). `ALLOW_CLOUD_RAW_CODE=true` est requis pour que `analyzeJavaClass` envoie
@@ -89,9 +97,8 @@ Il n'y a **ni pytest, ni ruff, ni `run_pipeline.py`** dans ce dépôt.
   analyse vide, le pipeline rapportant un succès). **Ne jamais faire partager une instance
   `JavaParser` entre workers, et ne pas introduire de verrou partagé autour du parsing non
   plus** — ce serait revenir en arrière sur ce correctif.
-  À noter : `CallGraphAgent` porte encore un champ `JavaParser` partagé ; il n'est
-  aujourd'hui appelé que depuis des chemins mono-thread, ce qui le rend sûr par accident et
-  non par construction.
+  `CallGraphAgent` applique le même correctif (`newParser()`, une instance par appel,
+  depuis `9b98b6b`) : plus aucune instance `JavaParser` partagée dans le code.
 - Toute modification touchant à `AstParserAgent` ou `CallGraphAgent` doit repasser le
   Golden Dataset avant merge.
 - Le flight recorder ne doit jamais faire échouer le pipeline, ni perdre des spans
