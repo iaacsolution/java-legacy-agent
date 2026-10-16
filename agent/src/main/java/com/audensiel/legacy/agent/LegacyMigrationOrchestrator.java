@@ -448,15 +448,41 @@ public class LegacyMigrationOrchestrator {
                 fileCount, dat, migrationPlan, specs);
     }
 
-    private static void deleteRecursively(Path dir) {
-        try {
-            if (Files.exists(dir)) {
-                try (var stream = Files.walk(dir)) {
-                    stream.sorted((a, b) -> b.compareTo(a)).forEach(p -> {
-                        try { Files.deleteIfExists(p); } catch (IOException ignored) {}
-                    });
+    /** Suppression d'un chemin — injectable pour tester un échec sur toutes les plateformes. */
+    @FunctionalInterface
+    interface PathDeleter {
+        void delete(Path p) throws IOException;
+    }
+
+    private static List<Path> deleteRecursively(Path dir) {
+        return deleteRecursively(dir, Files::deleteIfExists);
+    }
+
+    /**
+     * Supprime le handoff temporaire et renvoie ce qui n'a pas pu l'être.
+     *
+     * <p>Un échec n'est plus avalé : le handoff contient les spécifications produites par le
+     * LLM, un reste sur disque doit se voir. Le pipeline n'échoue pas pour autant — le
+     * rapport est déjà écrit à ce stade — mais un WARN nomme le dossier.
+     */
+    static List<Path> deleteRecursively(Path dir, PathDeleter deleter) {
+        List<Path> failed = new ArrayList<>();
+        if (!Files.exists(dir)) return failed;
+        try (var stream = Files.walk(dir)) {
+            for (Path p : stream.sorted((a, b) -> b.compareTo(a)).toList()) {
+                try {
+                    deleter.delete(p);
+                } catch (IOException e) {
+                    failed.add(p);
                 }
             }
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            failed.add(dir);
+        }
+        if (!failed.isEmpty()) {
+            log.warn("Nettoyage du handoff temporaire incomplet : {} élément(s) non supprimé(s) sous {} "
+                    + "(spécifications produites par le LLM) — premier échec : {}", failed.size(), dir, failed.get(0));
+        }
+        return failed;
     }
 }
