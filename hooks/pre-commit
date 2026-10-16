@@ -81,9 +81,6 @@ if [ -n "$LOGREQ_HITS" ]; then
     exit 1
 fi
 
-AGENT_IMAGE="java-legacy-agent-java-agent"
-PROJECT_PATH="/app/src"
-
 echo "=== Breaking Change Detector ==="
 
 # Récupère les fichiers Java modifiés dans le commit en cours
@@ -94,7 +91,12 @@ if [ -z "$CHANGED_JAVA" ]; then
     exit 0
 fi
 
+# Logique Docker commune (diagnostic d'échec, AGENT_STATE_DIR) : hooks/impact-lib.sh.
+# Chemin depuis la racine du dépôt : ce fichier est copié dans .git/hooks/.
+. "$(git rev-parse --show-toplevel)/hooks/impact-lib.sh"
+
 BREAKING=0
+PREFLIGHT_DONE=0
 
 for FILE in $CHANGED_JAVA; do
     # Extrait le nom de classe depuis le chemin (ex: src/.../ClientServiceBean.java)
@@ -105,18 +107,14 @@ for FILE in $CHANGED_JAVA; do
         | grep -oP '(?<=\s)\w+(?=\()' | sort -u)
 
     for METHOD in $METHODS; do
+        # Docker n'est sollicité que s'il y a réellement une méthode à analyser.
+        if [ "$PREFLIGHT_DONE" -eq 0 ]; then
+            impact_preflight || exit 1
+            PREFLIGHT_DONE=1
+        fi
+
         echo "Analyse impact : $CLASS.$METHOD()"
-
-        # Chemin Windows pour Docker (via PowerShell pour éviter la conversion Git Bash)
-        WIN_PATH=$(powershell.exe -Command "(Get-Location).Path" 2>/dev/null | tr -d '\r\n')
-        RESULT=$(MSYS_NO_PATHCONV=1 docker run --rm \
-            -v "${WIN_PATH}:/project" \
-            "$AGENT_IMAGE" \
-            impact /project/agent/src "$CLASS" "$METHOD" --json 2>&1)
-        echo "DEBUG severity=$SEVERITY callers=$CALLERS"
-
-        SEVERITY=$(echo "$RESULT" | grep -oP '(?<="severity": ")[^"]+')
-        CALLERS=$(echo "$RESULT" | grep -oP '(?<="callers_count": )\d+')
+        impact_run "$CLASS" "$METHOD" "agent/src" || exit 1
 
         if [ "$SEVERITY" = "MEDIUM" ] || [ "$SEVERITY" = "HIGH" ] || [ "$SEVERITY" = "CRITICAL" ]; then
             echo "BLOQUÉ : $CLASS.$METHOD() — $CALLERS appelant(s) — sévérité $SEVERITY"
@@ -132,6 +130,7 @@ if [ "$BREAKING" -eq 1 ]; then
     echo ""
     echo "Commit bloqué — changements cassants détectés."
     echo "Corrigez les appelants ou utilisez @Deprecated en transition."
+    impact_rappel_no_verify
     exit 1
 fi
 

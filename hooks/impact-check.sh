@@ -4,12 +4,17 @@
 # Installation :
 #   pip install pre-commit && pre-commit install
 #
-# CSV ROI généré dans : impact-roi.csv
+# CSV ROI généré dans : .java-legacy-agent/impact-roi.csv (AGENT_STATE_DIR, depuis le Lot 3)
 # Format : timestamp,class,method,severity,callers_count,callers,blocked,strategy,duration_ms
+#
+# Tout échec de l'analyse (Docker absent, démon arrêté, image manquante, analyse en échec)
+# BLOQUE le commit avec un diagnostic : voir hooks/impact-lib.sh.
 
-AGENT_IMAGE="java-legacy-agent-java-agent"
+. "$(git rev-parse --show-toplevel)/hooks/impact-lib.sh"
+
 SRC_PATH="agent/src"
 BREAKING=0
+PREFLIGHT_DONE=0
 
 echo "=== Java Breaking Change Detector ==="
 
@@ -24,27 +29,16 @@ for FILE in "$@"; do
     [ -z "$METHODS" ] && continue
 
     for METHOD in $METHODS; do
+        if [ "$PREFLIGHT_DONE" -eq 0 ]; then
+            impact_preflight || exit 1
+            PREFLIGHT_DONE=1
+        fi
+
         echo "  Analyse : $CLASS.$METHOD()"
-
-        WIN_PATH=$(powershell.exe -Command "(Get-Location).Path" 2>/dev/null | tr -d '\r\n')
-
-        RESULT=$(MSYS_NO_PATHCONV=1 docker run --rm \
-            -v "${WIN_PATH}:/project" \
-            "$AGENT_IMAGE" \
-            impact "/project/$SRC_PATH" "$CLASS" "$METHOD" --json 2>&1)
-
-        SEVERITY=$(echo "$RESULT"  | grep -oP '(?<="severity": ")[^"]+')
-        CALLERS=$(echo "$RESULT"   | grep -oP '(?<="callers_count": )\d+')
-        STRATEGY=$(echo "$RESULT"  | grep -oP '(?<="strategy": ")[^"]+')
-        DURATION=$(echo "$RESULT"  | grep -oP '(?<="duration_ms": )\d+')
-        CALLERS_LIST=$(echo "$RESULT" | grep -oP '"[A-Za-z]+\.[a-zA-Z]+:\d+"' \
-            | tr '\n' '|' | sed 's/|$//')
-
-        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        impact_run "$CLASS" "$METHOD" "$SRC_PATH" || exit 1
 
         case "$SEVERITY" in
             CRITICAL|HIGH|MEDIUM)
-                BLOCKED="true"
                 BREAKING=1
                 echo "  BLOQUÉ : $CALLERS appelant(s) — $SEVERITY — stratégie : $STRATEGY"
 
@@ -57,7 +51,6 @@ for FILE in "$@"; do
                     echo "$CODE" | head -10
                     echo "  ---------------------------------------------"
                 fi
-
                 ;;
             LOW)
                 echo "  AVERTISSEMENT : $CALLERS appelant(s) — LOW"
@@ -71,8 +64,9 @@ done
 
 if [ "$BREAKING" -eq 1 ]; then
     echo ""
-    echo "Commit bloqué — voir impact-roi.csv pour le rapport ROI."
+    echo "Commit bloqué — voir .java-legacy-agent/impact-roi.csv pour le rapport ROI."
     echo "Corrigez les appelants ou annotez @Deprecated en transition."
+    impact_rappel_no_verify
     exit 1
 fi
 

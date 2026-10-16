@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/check-golden-dataset.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-golden-dataset.sh\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/block-docker-destructive.py",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-docker-destructive.py\"",
             "timeout": 10
           }
         ]

@@ -1,0 +1,4 @@
+# Scripts shell toujours en LF : une continuation de ligne « \ » suivie de CR casse le
+# script (core.autocrlf=true les convertirait en CRLF au checkout sous Windows).
+*.sh text eol=lf
+hooks/pre-commit text eol=lf

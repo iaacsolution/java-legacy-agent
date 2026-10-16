@@ -57,6 +57,11 @@ jobs:
       - name: Composante déterministe (bloquant)
         run: python scripts/eval_golden_dataset.py --mode deterministic
 
+      # Hooks d'impact : chaque échec de l'analyse doit bloquer le commit. Faux docker,
+      # aucun appel au vrai Docker.
+      - name: Hooks d'impact (faux docker)
+        run: sh hooks/test-impact-lib.sh
+
       - name: Rapports
         if: always()
         uses: actions/upload-artifact@v7

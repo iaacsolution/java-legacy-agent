@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Indépendant du répertoire courant : les chemins ci-dessous (eval/reports, git diff) sont
+# relatifs à la racine du dépôt. CLAUDE_PROJECT_DIR est fourni par Claude Code aux hooks ;
+# à défaut, la racine se déduit de l'emplacement du script (.claude/hooks/ → ../..).
+cd "${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+
 PIPELINE_PATTERN='(agents/|orchestrator|parsing/)'
 
 # 1. Rien à vérifier si aucun fichier du pipeline n'a changé depuis l'avant-dernier commit
