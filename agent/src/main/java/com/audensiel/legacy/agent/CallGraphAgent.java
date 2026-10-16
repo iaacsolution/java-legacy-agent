@@ -54,6 +54,9 @@ public class CallGraphAgent {
         return new JavaParser(PARSER_CONFIG);
     }
 
+    /** Graphe et nombre de fichiers exclus volontairement (IMPACT_EXCLUSIONS_FILE). */
+    public record ScanResult(CallGraph graph, int excludedFiles) {}
+
     /**
      * Construit le graphe, avec un cache utilisé SEULEMENT si le contenu de TOUS les fichiers
      * est identique (MD5) et qu'aucun fichier n'a été ajouté ni supprimé. Au moindre
@@ -67,42 +70,81 @@ public class CallGraphAgent {
      * la justesse prime sur le gain de temps.
      */
     public CallGraph buildCallGraph(Path projectRoot) throws IOException {
+        return scan(projectRoot).graph();   // mêmes règles que scan() : échec fermé, exclusions
+    }
+
+    /**
+     * Construit le graphe d'appels du projet — ou échoue : jamais un graphe incomplet présenté
+     * comme complet (écart E8, docs/GOVERNANCE.md).
+     *
+     * <p>Échec fermé ({@link ImpactScanException}) si un seul fichier ne se parse pas : ses
+     * appels disparaîtraient du graphe, et un changement cassant passerait pour sûr. Seul
+     * recours : la liste d'exclusions ({@link ImpactExclusions}), explicite et justifiée ; le
+     * nombre de fichiers exclus est toujours rapporté.
+     *
+     * <p>Cache utilisé SEULEMENT si le contenu de TOUS les fichiers est identique (MD5), sans
+     * ajout ni suppression, et avec la même liste d'exclusions. Au moindre changement : scan
+     * complet. Un scan en échec n'est jamais mis en cache (le passage suivant le prendrait
+     * pour valide). Avant le Lot 3, un rescan incrémental perdait des appels : la justesse
+     * prime sur le gain de temps.
+     */
+    public ScanResult scan(Path projectRoot) throws IOException {
         List<Path> javaFiles;
         try (var stream = Files.walk(projectRoot)) {
             javaFiles = stream.filter(p -> p.toString().endsWith(".java")).sorted().collect(Collectors.toList());
         }
-
-        System.out.println("[CallGraph] " + javaFiles.size() + " fichiers Java trouvés dans " + projectRoot);
 
         // Dossier d'état hors du projet analysé (refus explicite sinon), cache propre au projet.
         Path stateDir = StateDir.resolve(projectRoot, env);
         StateDir.warnLegacyArtifacts(projectRoot);
         Path cacheFile = CallGraphCache.cacheFileFor(stateDir, projectRoot);
 
-        Map<String, String> hashes = CallGraphCache.hashesOf(projectRoot, javaFiles);
+        ImpactExclusions.Exclusions exclusions = ImpactExclusions.load(projectRoot, env);
+        Path racine = projectRoot.toAbsolutePath().normalize();
+        List<Path> analyses = javaFiles.stream()
+                .filter(f -> !exclusions.paths().contains(relatif(racine, f)))
+                .collect(Collectors.toList());
+
+        System.out.println("[CallGraph] " + javaFiles.size() + " fichiers Java trouvés dans " + projectRoot
+                + " — " + exclusions.count() + " fichier(s) exclu(s) volontairement");
+
+        // Clé du cache = MD5 des seuls fichiers ANALYSÉS : exclure un fichier (ou cesser de
+        // l'exclure) change cet ensemble, donc invalide le cache — sans entrée supplémentaire.
+        Map<String, String> hashes = CallGraphCache.hashesOf(projectRoot, analyses);
         Optional<CallGraphCache.CacheEntry> cacheOpt = CallGraphCache.loadFile(cacheFile);
 
         if (cacheOpt.isPresent() && cacheOpt.get().fileHashes().equals(hashes)) {
             System.out.println("[CallGraph] Cache valide — contenu identique (scan ignoré)");
-            return new CallGraph(cacheOpt.get().callers());
+            return new ScanResult(new CallGraph(cacheOpt.get().callers()), exclusions.count());
         }
 
         System.out.println(cacheOpt.isPresent()
                 ? "[CallGraph] Contenu modifié, ajouté ou supprimé — scan complet"
                 : "[CallGraph] Pas de cache — scan complet");
         Map<String, List<String>> callers = new LinkedHashMap<>();
-        scanFiles(javaFiles, callers);
+        List<String> nonParses = scanFiles(racine, analyses, callers);
+
+        if (!nonParses.isEmpty()) {
+            throw new ImpactScanException(nonParses.size() + " fichier(s) non parsé(s) : graphe d'appels incomplet",
+                    nonParses, exclusions.count(), null);
+        }
 
         CallGraphCache.saveFile(cacheFile, hashes, callers);
         System.out.println("[CallGraph] " + callers.size() + " méthodes indexées — cache sauvegardé");
-        return new CallGraph(callers);
+        return new ScanResult(new CallGraph(callers), exclusions.count());
     }
 
-    private void scanFiles(List<Path> files, Map<String, List<String>> callers) throws IOException {
+    private static String relatif(Path racine, Path f) {
+        return racine.relativize(f.toAbsolutePath().normalize()).toString().replace('\\', '/');
+    }
+
+    /** Renvoie les fichiers NON parsés (chemins relatifs au projet). */
+    private List<String> scanFiles(Path racine, List<Path> files, Map<String, List<String>> callers) throws IOException {
 
         // Étape 1 — collecter les déclarations de méthodes dans les fichiers scannés
         Set<String> allMethods = new HashSet<>();
         Map<Path, CompilationUnit> parsedFiles = new LinkedHashMap<>();
+        List<String> nonParses = new ArrayList<>();
 
         for (Path file : files) {
             try {
@@ -117,10 +159,13 @@ public class CallGraphAgent {
                         allMethods.add(className + "." + m.getNameAsString());
                     });
                 } else {
-                    System.out.println("[CallGraph] Parse échoué : " + file.getFileName());
+                    System.out.println("[CallGraph] Parse échoué : " + relatif(racine, file));
+                    nonParses.add(relatif(racine, file));
                 }
-            } catch (Exception e) {
-                System.out.println("[CallGraph] Erreur : " + file.getFileName() + " — " + e.getMessage());
+            } catch (Exception | AssertionError e) {
+                // AssertionError : forme observée d'un échec interne de JavaParser (voir newParser).
+                System.out.println("[CallGraph] Erreur : " + relatif(racine, file) + " — " + e.getClass().getSimpleName());
+                nonParses.add(relatif(racine, file));
             }
         }
         System.out.println("[CallGraph] " + allMethods.size() + " méthodes déclarées, "
@@ -145,5 +190,6 @@ public class CallGraphAgent {
                                 callers.computeIfAbsent(target, k -> new ArrayList<>()).add(callerRef));
             });
         }
+        return nonParses;
     }
 }

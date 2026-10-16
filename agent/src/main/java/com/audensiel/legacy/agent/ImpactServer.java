@@ -78,6 +78,11 @@ public class ImpactServer {
                 BreakingChangeDetector.BreakingChangeReport report =
                         detector.analyze(projectRoot, className, methodName);
                 sendJson(exchange, 200, report.toJson());
+            } catch (ImpactScanException e) {
+                // Échec fermé (E8) : jamais un 200 « aucun impact ». Sans authentification (E10),
+                // le client ne reçoit que le NOMBRE de fichiers en cause ; les chemins vont au journal.
+                log.error("Analyse d'impact impossible : {} — fichiers non parsés : {}", e.getMessage(), e.unparsedFiles());
+                sendJson(exchange, 500, "{\"error\":\"scan_failed\",\"unparsed_files\":" + e.unparsedFiles().size() + "}");
             } catch (Exception e) {
                 // Le détail ne part jamais au client : un message d'exception peut contenir
                 // des chemins du serveur (et n'était pas échappé en JSON). Il reste ici, en ERROR.

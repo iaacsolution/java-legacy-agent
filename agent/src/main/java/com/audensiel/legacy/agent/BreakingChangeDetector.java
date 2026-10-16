@@ -23,7 +23,8 @@ public class BreakingChangeDetector {
             Severity severity,
             String recommendation,
             RefactoringAdvisor.RefactoringPlan refactoring,
-            long durationMs
+            long durationMs,
+            int excludedFiles      // fichiers écartés volontairement (IMPACT_EXCLUSIONS_FILE)
     ) {
         public boolean isBreaking() { return severity != Severity.NONE && severity != Severity.LOW; }
 
@@ -34,6 +35,7 @@ public class BreakingChangeDetector {
             sb.append("  Méthode  : ").append(className).append(".").append(methodName).append("()\n");
             sb.append("  Sévérité : ").append(severity).append("\n");
             sb.append("  Durée    : ").append(durationMs).append(" ms\n");
+            sb.append("  Exclus   : ").append(excludedFiles).append(" fichier(s) exclu(s) volontairement\n");
             sb.append("=".repeat(60)).append("\n");
 
             if (callers.isEmpty()) {
@@ -76,6 +78,7 @@ public class BreakingChangeDetector {
             json.append("    \"code_template\": \"").append(esc(refactoring.codeTemplate())).append("\"\n");
             json.append("  },\n");
             json.append("  \"duration_ms\": ").append(durationMs).append(",\n");
+            json.append("  \"excluded_files\": ").append(excludedFiles).append(",\n");
             json.append("  \"breaking\": ").append(isBreaking()).append("\n");
             json.append("}");
             return json.toString();
@@ -86,26 +89,41 @@ public class BreakingChangeDetector {
         }
     }
 
-    private final CallGraphAgent   callGraphAgent = new CallGraphAgent();
+    private final CallGraphAgent   callGraphAgent;
     private final RefactoringAdvisor advisor      = new RefactoringAdvisor();
+
+    public BreakingChangeDetector() {
+        this(new CallGraphAgent());
+    }
+
+    /** Agent injectable (environnement : AGENT_STATE_DIR, IMPACT_EXCLUSIONS_FILE) — pour les tests. */
+    BreakingChangeDetector(CallGraphAgent callGraphAgent) {
+        this.callGraphAgent = callGraphAgent;
+    }
 
     public BreakingChangeReport analyze(Path projectRoot, String className, String methodName) {
         log.info("Analyse impact — {}.{}() dans {}", className, methodName, projectRoot);
 
         long t0 = System.nanoTime();
 
-        CallGraphAgent.CallGraph graph;
+        // Échec fermé (écart E8) : une analyse qui n'a pas pu se faire lève ImpactScanException,
+        // jamais un rapport « aucun impact ». Avant, toute exception devenait la sévérité NONE :
+        // l'API répondait 200 et la CLI sortait en 0 — un changement cassant passait pour sûr.
+        CallGraphAgent.ScanResult scan;
         try {
             long tScan = System.nanoTime();
-            graph = callGraphAgent.buildCallGraph(projectRoot);
+            scan = callGraphAgent.scan(projectRoot);
             long scanMs = (System.nanoTime() - tScan) / 1_000_000;
             System.out.printf("[Timer] Scan AST        : %d ms%n", scanMs);
+        } catch (ImpactScanException e) {
+            log.error("Analyse d'impact impossible : {} — fichiers non parsés : {}", e.getMessage(), e.unparsedFiles());
+            throw e;
         } catch (Exception e) {
-            log.error("Échec scan AST : {}", e.getMessage());
-            return new BreakingChangeReport(className, methodName,
-                    List.of(), Severity.NONE, "Scan AST échoué",
-                    advisor.suggest(className, methodName, List.of(), Severity.NONE), 0);
+            log.error("Analyse d'impact impossible : {} — {}", e.getClass().getSimpleName(), e.getMessage());
+            throw new ImpactScanException("analyse impossible (" + e.getClass().getSimpleName() + ") : "
+                    + e.getMessage(), List.of(), 0, e);
         }
+        CallGraphAgent.CallGraph graph = scan.graph();
 
         long tMatch             = System.nanoTime();
         List<String> callers    = graph.callersOf(className, methodName);
@@ -132,7 +150,7 @@ public class BreakingChangeDetector {
                 callers.size(), severity, plan.strategy(), totalMs);
 
         return new BreakingChangeReport(className, methodName, callers,
-                severity, recommendation, plan, totalMs);
+                severity, recommendation, plan, totalMs, scan.excludedFiles());
     }
 
     private Severity computeSeverity(List<String> callers) {

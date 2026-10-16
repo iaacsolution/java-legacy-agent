@@ -72,6 +72,47 @@ public class Main {
             }
             """;
 
+    /** Code de sortie du mode impact : l'analyse n'a pas pu se faire (écart E8). */
+    static final int IMPACT_SCAN_FAILED = 3;
+
+    /**
+     * Mode impact. Codes de sortie : 0 aucun changement cassant, 1 changement cassant,
+     * 3 analyse impossible — jamais confondue avec « aucun impact » (écart E8,
+     * docs/GOVERNANCE.md). Lu par les hooks (hooks/impact-lib.sh).
+     */
+    static int runImpact(Path projectPath, String className, String methodName, boolean json,
+                         BreakingChangeDetector detector, SpanRecorder recorder,
+                         java.util.function.Function<String, String> env,
+                         java.io.PrintStream out) throws Exception {
+        BreakingChangeDetector.BreakingChangeReport report;
+        try {
+            // Racine « impact » : CallGraphAgent ne passe jamais par l'orchestrateur ni par
+            // RunMetrics.track, il ne serait donc couvert par aucun span sans cette racine.
+            report = recorder.call("run", "CallGraphAgent", "impact",
+                    java.util.Map.of("class", className, "method", methodName),
+                    () -> detector.analyze(projectPath, className, methodName));
+        } catch (ImpactScanException e) {
+            if (json) {
+                out.println(e.toJson());
+            } else {
+                out.println("ANALYSE D'IMPACT IMPOSSIBLE — " + e.getMessage());
+                e.unparsedFiles().forEach(f -> out.println("  non parsé : " + f));
+                out.println("  " + e.excludedFiles() + " fichier(s) exclu(s) volontairement");
+            }
+            return IMPACT_SCAN_FAILED;
+        }
+
+        out.println(json ? report.toJson() : report.toConsoleReport());
+
+        // Log CSV ROI depuis Java (Linux Docker → pas de CRLF Windows)
+        if (report.isBreaking()) {
+            // Dossier d'état (AGENT_STATE_DIR), plus le grand-parent du projet analysé.
+            RoiLogger.log(StateDir.resolve(projectPath, env), report);
+            return 1;
+        }
+        return 0;
+    }
+
     public static void main(String[] args) throws Exception {
         String ollamaUrl = System.getenv().getOrDefault("OLLAMA_BASE_URL", "http://localhost:11434");
         String otlpEndpoint = System.getenv().getOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317");
@@ -103,26 +144,9 @@ public class Main {
             System.out.println("Méthode cible : " + className + "." + methodName + "()");
             System.out.println("─".repeat(60));
 
-            BreakingChangeDetector detector = new BreakingChangeDetector();
-            // Racine « impact » : CallGraphAgent ne passe jamais par l'orchestrateur ni par
-            // RunMetrics.track, il ne serait donc couvert par aucun span sans cette racine.
-            BreakingChangeDetector.BreakingChangeReport report =
-                    recorder.call("run", "CallGraphAgent", "impact",
-                            java.util.Map.of("class", className, "method", methodName),
-                            () -> detector.analyze(projectPath, className, methodName));
-
-            if (json) {
-                System.out.println(report.toJson());
-            } else {
-                System.out.println(report.toConsoleReport());
-            }
-
-            // Log CSV ROI depuis Java (Linux Docker → pas de CRLF Windows)
-            if (report.isBreaking()) {
-                // Dossier d'état (AGENT_STATE_DIR), plus le grand-parent du projet analysé.
-                RoiLogger.log(StateDir.resolve(projectPath), report);
-                System.exit(1);
-            }
+            int code = runImpact(projectPath, className, methodName, json,
+                    new BreakingChangeDetector(), recorder, System::getenv, System.out);
+            if (code != 0) System.exit(code);
 
         } else if (args.length >= 2 && args[0].equals("serve")) {
             // ── Mode serveur d'impact — expose BreakingChangeDetector en HTTP ──

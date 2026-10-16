@@ -65,7 +65,8 @@ class AccessAllowlistTest {
                     "RunMetrics.java"),                    // metrics_<projet>.json
             Acces.LECTURE_DISQUE, Set.of(
                     "CallGraphAgent.java", "CallGraphCache.java", "EvalMain.java", "FileScannerAgent.java",
-                    "HandoffBundle.java", "LegacyMigrationOrchestrator.java"),
+                    "HandoffBundle.java", "LegacyMigrationOrchestrator.java",
+                    "ImpactExclusions.java"),              // liste d'exclusions (IMPACT_EXCLUSIONS_FILE)
             Acces.RESEAU, Set.of(
                     "ImpactServer.java", "MetricsPusher.java", "PipelineTracer.java", "observability/SpanRecorder.java"),
             Acces.LLM, Set.of(
