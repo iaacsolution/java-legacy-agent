@@ -6,7 +6,12 @@
 # laissait passer le commit. Désormais tout échec BLOQUE le commit, avec un diagnostic
 # qui distingue la cause, et rappelle --no-verify.
 #
-# Surcharges (tests) : DOCKER_BIN (défaut : docker), AGENT_IMAGE, PROJECT_HOST_PATH.
+# Codes de impact_run : 0 analyse aboutie (quel que soit son verdict), 13 analyse en échec
+# (sortie sans verdict, ou ancienne image : « Scan AST échoué »), 14 analyse impossible
+# (code de sortie 3 du mode impact / JSON « scan_failed » — écart E8 corrigé).
+#
+# Surcharges (tests) : DOCKER_BIN (défaut : docker), AGENT_IMAGE, PROJECT_HOST_PATH,
+# IMPACT_EXCLUSIONS_HOST (défaut : impact-exclusions.txt, racine du dépôt).
 
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 # Image produite par le service compose java-analyzer (build: ./agent, projet
@@ -55,12 +60,37 @@ impact_run() {
     fi
     # Le dossier d'état est sur le volume du dépôt : le cache et impact-roi.csv survivent
     # au conteneur (AGENT_STATE_DIR, hors du chemin analysé /project/$_src).
-    RESULT=$(MSYS_NO_PATHCONV=1 "$DOCKER_BIN" run --rm \
-        -v "${_host}:/project" \
-        -e AGENT_STATE_DIR=/project/.java-legacy-agent \
-        "$AGENT_IMAGE" \
-        impact "/project/$_src" "$_class" "$_method" --json 2>&1)
+    # Liste d'exclusions versionnée (impact-exclusions.txt à la racine du dépôt), transmise si
+    # elle existe : fichiers écartés volontairement, un par un, avec justification.
+    if [ -f "${IMPACT_EXCLUSIONS_HOST:-impact-exclusions.txt}" ]; then
+        RESULT=$(MSYS_NO_PATHCONV=1 "$DOCKER_BIN" run --rm \
+            -v "${_host}:/project" \
+            -e AGENT_STATE_DIR=/project/.java-legacy-agent \
+            -e IMPACT_EXCLUSIONS_FILE=/project/impact-exclusions.txt \
+            "$AGENT_IMAGE" \
+            impact "/project/$_src" "$_class" "$_method" --json 2>&1)
+    else
+        RESULT=$(MSYS_NO_PATHCONV=1 "$DOCKER_BIN" run --rm \
+            -v "${_host}:/project" \
+            -e AGENT_STATE_DIR=/project/.java-legacy-agent \
+            "$AGENT_IMAGE" \
+            impact "/project/$_src" "$_class" "$_method" --json 2>&1)
+    fi
     _rc=$?
+
+    # Code 3 / JSON « scan_failed » (écart E8, corrigé) : l'analyse n'a pas pu se faire.
+    # Jamais confondu avec « aucun impact » ; diagnostic distinct (code 14).
+    if [ "$_rc" -eq 3 ] || echo "$RESULT" | grep -q '"error": "scan_failed"'; then
+        _reason=$(echo "$RESULT" | grep -oP '(?<="reason": ")[^"]+' | head -1)
+        _unparsed=$(echo "$RESULT" | grep -oP '(?<="unparsed_files": \[)[^]]*' | head -1)
+        _excluded=$(echo "$RESULT" | grep -oP '(?<="excluded_files": )\d+' | head -1)
+        echo "BLOQUÉ : l'analyse d'impact de $_class.$_method() n'a pas pu se faire (code $_rc) : ${_reason:-cause inconnue}"
+        [ -n "$_unparsed" ] && echo "  Fichiers non parsés : $_unparsed"
+        echo "  Fichiers exclus volontairement : ${_excluded:-?} (impact-exclusions.txt)"
+        echo "  Recours : corriger le fichier, ou l'exclure avec une justification dans impact-exclusions.txt."
+        impact_rappel_no_verify
+        return 14
+    fi
     SEVERITY=$(echo "$RESULT" | grep -oP '(?<="severity": ")[^"]+' | head -1)
     CALLERS=$(echo "$RESULT"  | grep -oP '(?<="callers_count": )\d+' | head -1)
     STRATEGY=$(echo "$RESULT" | grep -oP '(?<="strategy": ")[^"]+' | head -1)

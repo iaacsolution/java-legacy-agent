@@ -76,6 +76,29 @@ json NONE "Scan AST échoué" > "$TMP/out-scan"
 OUT=$(DOCKER_BIN="$FAKE" FAKE_RUN_OUT="$TMP/out-scan" PROJECT_HOST_PATH=/x lib impact_run A b agent/src 2>&1); RC=$?
 verifie "scan échoué rapporté NONE = échec" 13 $RC "a échoué" "$OUT"
 
+printf '{\n  "error": "scan_failed",\n  "reason": "1 fichier(s) non parsé(s) : graphe d appels incomplet",\n  "unparsed_files": ["main/java/A.java"],\n  "excluded_files": 0\n}\n' > "$TMP/out-code3"
+OUT=$(DOCKER_BIN="$FAKE" FAKE_RUN_OUT="$TMP/out-code3" FAKE_RUN_RC=3 PROJECT_HOST_PATH=/x lib impact_run A b agent/src 2>&1); RC=$?
+verifie "code 3 + JSON scan_failed : bloqué, diagnostic distinct" 14 $RC "n'a pas pu se faire (code 3)" "$OUT"
+verifie "code 3 : fichiers non parsés affichés" 14 $RC "main/java/A.java" "$OUT"
+verifie "code 3 : exclusions et recours rappelés" 14 $RC "impact-exclusions.txt" "$OUT"
+verifie "code 3 : rappel --no-verify" 14 $RC "no-verify" "$OUT"
+printf 'sortie tronquée\n' > "$TMP/out-code3-nu"
+OUT=$(DOCKER_BIN="$FAKE" FAKE_RUN_OUT="$TMP/out-code3-nu" FAKE_RUN_RC=3 PROJECT_HOST_PATH=/x lib impact_run A b agent/src 2>&1); RC=$?
+verifie "code 3 sans JSON : bloqué quand même" 14 $RC "n'a pas pu se faire (code 3)" "$OUT"
+
+: > "$TMP/log-excl"; printf '# vide\n' > "$TMP/exclusions.txt"
+DOCKER_BIN="$FAKE" FAKE_LOG="$TMP/log-excl" FAKE_RUN_OUT="$TMP/out-code3" FAKE_RUN_RC=3 PROJECT_HOST_PATH=/x \
+    IMPACT_EXCLUSIONS_HOST="$TMP/exclusions.txt" lib impact_run A b agent/src >/dev/null 2>&1
+verifie "liste d'exclusions présente : transmise au conteneur" 0 0 "IMPACT_EXCLUSIONS_FILE=/project/impact-exclusions.txt" "$(cat "$TMP/log-excl")"
+: > "$TMP/log-excl"
+DOCKER_BIN="$FAKE" FAKE_LOG="$TMP/log-excl" FAKE_RUN_OUT="$TMP/out-code3" FAKE_RUN_RC=3 PROJECT_HOST_PATH=/x \
+    IMPACT_EXCLUSIONS_HOST="$TMP/absente.txt" lib impact_run A b agent/src >/dev/null 2>&1
+if grep -q "IMPACT_EXCLUSIONS_FILE" "$TMP/log-excl"; then
+    echo "  ÉCHEC liste absente : la variable ne doit pas être transmise"; ECHECS=$((ECHECS + 1))
+else
+    echo "  ok    liste d'exclusions absente : rien n'est transmis"
+fi
+
 json CRITICAL "2 appelants" > "$TMP/out-critique"
 OUT=$(DOCKER_BIN="$FAKE" FAKE_RUN_OUT="$TMP/out-critique" FAKE_RUN_RC=1 PROJECT_HOST_PATH=/x \
       lib sh -c '. "$0"; impact_run A b agent/src; echo "SEV=$SEVERITY"' "$RACINE/hooks/impact-lib.sh" 2>&1); RC=$?
@@ -102,6 +125,8 @@ OUT=$(cd "$REPO" && DOCKER_BIN="$FAKE" FAKE_INSPECT=noimage sh hooks/pre-commit 
 verifie "pre-commit, image manquante : commit bloqué" 1 $RC "est absente localement" "$OUT"
 OUT=$(cd "$REPO" && DOCKER_BIN="$FAKE" FAKE_INSPECT=ok FAKE_RUN_OUT="$TMP/out-plante" FAKE_RUN_RC=1 PROJECT_HOST_PATH=/x sh hooks/pre-commit 2>&1); RC=$?
 verifie "pre-commit, analyse plantée : commit bloqué" 1 $RC "a échoué" "$OUT"
+OUT=$(cd "$REPO" && DOCKER_BIN="$FAKE" FAKE_INSPECT=ok FAKE_RUN_OUT="$TMP/out-code3" FAKE_RUN_RC=3 PROJECT_HOST_PATH=/x sh hooks/pre-commit 2>&1); RC=$?
+verifie "pre-commit, code 3 (analyse impossible) : commit bloqué" 1 $RC "n'a pas pu se faire" "$OUT"
 OUT=$(cd "$REPO" && DOCKER_BIN="$FAKE" FAKE_INSPECT=ok FAKE_RUN_OUT="$TMP/out-ok" PROJECT_HOST_PATH=/x sh hooks/pre-commit 2>&1); RC=$?
 verifie "pre-commit, aucun impact : commit accepté" 0 $RC "aucun changement cassant" "$OUT"
 

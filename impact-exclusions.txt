@@ -1,0 +1,13 @@
+# Liste d'exclusions de l'analyse d'impact (IMPACT_EXCLUSIONS_FILE) — écart E8, docs/GOVERNANCE.md.
+#
+# Un fichier que le parseur (JavaParser, niveau de langage Java 17) ne sait pas lire fait
+# ÉCHOUER l'analyse : ses appels disparaîtraient du graphe et un changement cassant passerait
+# pour sûr. Seul recours : l'exclure ICI, un par un, avec une justification. Un fichier exclu
+# n'est pas analysé (risque accepté) ; l'analyse affiche toujours le nombre d'exclusions.
+#
+# Format : chemin/relatif/au/projet/analysé.java | justification
+#   - chemins relatifs au projet analysé par les hooks (agent/src), séparateur « / » ;
+#   - chemin absolu et « .. » refusés ; entrée sans justification ou périmée = échec.
+#
+# État au 2026-10-16 : aucun fichier en échec de parsing (demo-project 4/4, agent/src 61/61,
+# dépôt 65/65 — mesuré avec le parseur de CallGraphAgent). Liste vide.
