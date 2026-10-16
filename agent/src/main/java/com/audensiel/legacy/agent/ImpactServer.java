@@ -30,8 +30,17 @@ public class ImpactServer {
     private static final Pattern CLASS_NAME_FIELD  = Pattern.compile("\"class_name\"\\s*:\\s*\"([^\"]*)\"");
     private static final Pattern METHOD_NAME_FIELD = Pattern.compile("\"method_name\"\\s*:\\s*\"([^\"]*)\"");
 
+    /** Réponse 500 générique : le détail (chemins, messages d'exception) reste dans les journaux serveur. */
+    static final String INTERNAL_ERROR_JSON = "{\"error\":\"internal error\"}";
+
+    private HttpServer server;
+
     public void start(Path projectRoot, int port) throws IOException {
-        BreakingChangeDetector detector = new BreakingChangeDetector();
+        start(projectRoot, port, new BreakingChangeDetector());
+    }
+
+    /** Détecteur injectable : pour les tests (chemin d'erreur 500). */
+    void start(Path projectRoot, int port, BreakingChangeDetector detector) throws IOException {
 
         // Ecoute en local par defaut (127.0.0.1) -- zero authentification sur /impact,
         // pas de raison d'etre joignable depuis le reseau par defaut. Elargissement
@@ -41,7 +50,7 @@ public class ImpactServer {
         InetSocketAddress bindAddress = bindAll
                 ? new InetSocketAddress(port)
                 : new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
-        HttpServer server = HttpServer.create(bindAddress, 0);
+        server = HttpServer.create(bindAddress, 0);
 
         server.createContext("/health", exchange -> {
             byte[] body = "{\"status\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
@@ -70,8 +79,10 @@ public class ImpactServer {
                         detector.analyze(projectRoot, className, methodName);
                 sendJson(exchange, 200, report.toJson());
             } catch (Exception e) {
+                // Le détail ne part jamais au client : un message d'exception peut contenir
+                // des chemins du serveur (et n'était pas échappé en JSON). Il reste ici, en ERROR.
                 log.error("Échec traitement /impact", e);
-                sendJson(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+                sendJson(exchange, 500, INTERNAL_ERROR_JSON);
             }
         });
 
@@ -83,6 +94,11 @@ public class ImpactServer {
         System.out.println("   Projet scanné : " + projectRoot);
         System.out.println("   Endpoints : POST /impact {class_name, method_name} · GET /health");
         log.info("ImpactServer démarré sur le port {} pour le projet {}", port, projectRoot);
+    }
+
+    /** Pour les tests : arrête le serveur démarré par {@link #start}. */
+    void stop() {
+        if (server != null) server.stop(0);
     }
 
     private String extractField(Pattern pattern, String json) {
