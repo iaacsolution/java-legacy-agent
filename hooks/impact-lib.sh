@@ -9,7 +9,11 @@
 # Surcharges (tests) : DOCKER_BIN (défaut : docker), AGENT_IMAGE, PROJECT_HOST_PATH.
 
 DOCKER_BIN="${DOCKER_BIN:-docker}"
-AGENT_IMAGE="${AGENT_IMAGE:-java-legacy-agent-java-agent}"
+# Image produite par le service compose java-analyzer (build: ./agent, projet
+# java-legacy-agent). L'ancien défaut, java-legacy-agent-java-agent, désignait un service
+# « java-agent » scindé depuis en java-analyzer / java-reporter : l'image n'existait plus.
+# Surchargeable : AGENT_IMAGE=<image> git commit …
+AGENT_IMAGE="${AGENT_IMAGE:-java-legacy-agent-java-analyzer}"
 
 # Rappel commun à tous les blocages.
 impact_rappel_no_verify() {

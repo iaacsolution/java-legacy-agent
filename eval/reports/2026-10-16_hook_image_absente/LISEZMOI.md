@@ -15,6 +15,20 @@ Cette sortie réelle, rejouée sans Docker (faux exécutable qui la renvoie) :
 - **nouvelle logique** (`hooks/impact-lib.sh`) : bloqué au pré-vol, « image absente
   localement » (code 12) ; à l'analyse, « a échoué (code 125) » (code 13).
 
-Non fait : le chemin hook → conteneur → `AGENT_STATE_DIR` n'a pas pu être vérifié de bout
-en bout, faute d'image. Couvert sans conteneur par CallGraphCacheCorrectnessTest
-(emplacement, refus, orphelins) et hooks/test-impact-lib.sh (transmission de la variable).
+## Bout en bout, refait sur l'image existante (2026-10-16)
+
+Aucun service compose ne produit `java-legacy-agent-java-agent` : l'ancien service
+« java-agent » a été scindé en `java-analyzer` / `java-reporter`. Même `docker run`, sur
+l'image existante `java-legacy-agent-java-analyzer` (aucune construction) :
+
+    docker run --rm -v "<dépôt>:/project" -e AGENT_STATE_DIR=/project/.java-legacy-agent       --entrypoint java java-legacy-agent-java-analyzer       -jar /project/agent/target/java-legacy-agent-1.0.0.jar impact /project/agent/src RunMetrics track --json
+
+Résultat (`docker_run_java_analyzer.log`), code 1 = changement cassant détecté :
+- `RunMetrics.track` : 10 appelants, sévérité HIGH ;
+- cache écrit dans `/project/.java-legacy-agent/callgraph/<sha>.json` (clés relatives au projet) ;
+- `impact-roi.csv` écrit dans `/project/.java-legacy-agent/` ;
+- les deux anciens fichiers du grand-parent (`/project/.callgraph-cache.json`,
+  `/project/impact-roi.csv`) signalés en WARN et **intacts** (SHA-1 identiques avant/après).
+
+Le défaut du hook est désormais `java-legacy-agent-java-analyzer`, surchargeable par
+`AGENT_IMAGE`.

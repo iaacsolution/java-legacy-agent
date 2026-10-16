@@ -233,7 +233,7 @@ networks:
   # Docker Compose ne publie alors plus les ports côté host (vérifié
   # empiriquement, cf. SECURITY_PLAN.md) — inutilisable pour une démo où
   # chaque UI doit rester accessible en localhost. Le vrai blocage d'egress
-  # (LLM01/OWASP, seuls vllm+java-agent doivent sortir vers Internet)
+  # (LLM01/OWASP, seuls vllm et java-reporter, client Anthropic, doivent sortir vers Internet)
   # nécessite un proxy de sortie ou une NetworkPolicy k8s, pas encore fait.
   compute:      # vllm, java-analyzer, java-reporter, open-webui — service LLM
   observability: # pushgateway, prometheus, grafana, phoenix, java-analyzer, java-reporter

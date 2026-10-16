@@ -18,7 +18,7 @@ case "$1" in
     case "$FAKE_INSPECT" in
       ok) exit 0 ;;
       daemon) echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?" >&2; exit 1 ;;
-      *) echo "Error: No such image: java-legacy-agent-java-agent" >&2; exit 1 ;;
+      *) echo "Error: No such image: $3" >&2; exit 1 ;;
     esac ;;
   run)
     cat "$FAKE_RUN_OUT"
@@ -55,6 +55,13 @@ verifie "démon injoignable" 11 $RC "démon Docker ne répond pas" "$OUT"
 
 OUT=$(DOCKER_BIN="$FAKE" FAKE_INSPECT=noimage lib impact_preflight 2>&1); RC=$?
 verifie "image manquante" 12 $RC "est absente localement" "$OUT"
+verifie "image manquante : nom par défaut affiché" 12 $RC "java-legacy-agent-java-analyzer" "$OUT"
+verifie "image manquante : rappel --no-verify" 12 $RC "no-verify" "$OUT"
+
+: > "$TMP/log-image"
+OUT=$(DOCKER_BIN="$FAKE" FAKE_LOG="$TMP/log-image" FAKE_INSPECT=noimage AGENT_IMAGE=mon-image:test lib impact_preflight 2>&1); RC=$?
+verifie "AGENT_IMAGE surchargé : image demandée et nommée" 12 $RC "mon-image:test" "$OUT"
+verifie "AGENT_IMAGE surchargé : c'est elle qui est inspectée" 12 $RC "image inspect mon-image:test" "$(cat "$TMP/log-image")"
 
 OUT=$(DOCKER_BIN="$FAKE" FAKE_INSPECT=ok lib impact_preflight 2>&1); RC=$?
 verifie "prêt" 0 $RC "" "$OUT"

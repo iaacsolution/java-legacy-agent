@@ -1,0 +1,50 @@
+🚀 Java Legacy Migration Agent
+🧠 LLM backend: Ollama local CPU — http://ollama:11434 (sérialise, AGENT_WORKERS=1 conseillé)
+📊 OTLP endpoint: http://localhost:4317
+────────────────────────────────────────────────────────────
+Scanning AST : /project/agent/src
+Méthode cible : RunMetrics.track()
+────────────────────────────────────────────────────────────
+13:39:37 [INFO ] c.a.l.a.BreakingChangeDetector — Analyse impact — RunMetrics.track() dans /project/agent/src
+[CallGraph] 61 fichiers Java trouvés dans /project/agent/src
+13:39:37 [WARN ] c.a.l.agent.StateDir — Fichier orphelin d'avant le Lot 3, plus utilisé et NON supprimé : /project/.callgraph-cache.json (l'état vit désormais dans AGENT_STATE_DIR)
+13:39:37 [WARN ] c.a.l.agent.StateDir — Fichier orphelin d'avant le Lot 3, plus utilisé et NON supprimé : /project/impact-roi.csv (l'état vit désormais dans AGENT_STATE_DIR)
+[CallGraph] Pas de cache — scan complet
+[CallGraph] 358 méthodes déclarées, 61 fichiers parsés
+[Cache] Sauvegarde → /project/.java-legacy-agent/callgraph/e98879fbfb37b4f5.json
+[Cache] Sauvegardé — 61 fichiers (MD5)
+[CallGraph] 260 méthodes indexées — cache sauvegardé
+[Timer] Scan AST        : 6490 ms
+[Timer] Matching callers : 0 ms
+[Timer] Refactoring plan : 5 ms
+[Timer] TOTAL            : 6502 ms
+[Timer] ATTENTION : scan > 200ms — vérifiez le cache MD5
+13:39:43 [INFO ] c.a.l.a.BreakingChangeDetector — Résultat : 10 callers, sévérité=HIGH, stratégie=EXTRACT_INTERFACE, durée=6502ms
+{
+  "class": "RunMetrics",
+  "method": "track",
+  "severity": "HIGH",
+  "callers_count": 10,
+  "callers": [
+    "EvalMain.runTestCase:244",
+    "EvalMain.runTestCase:254",
+    "EvalMain.runTestCase:264",
+    "LegacyMigrationOrchestrator.runAnalyzePhase:114",
+    "LegacyMigrationOrchestrator.runAnalyzePhase:152",
+    "LegacyMigrationOrchestrator.runAnalyzePhase:163",
+    "LegacyMigrationOrchestrator.runAnalyzePhase:272",
+    "LegacyMigrationOrchestrator.executeWithRetry:383",
+    "Main.main:212",
+    "Main.main:220"
+  ],
+  "recommendation": "Impact élevé (10 callers) — interface de transition requise.",
+  "refactoring": {
+    "strategy": "EXTRACT_INTERFACE",
+    "immediate": "Créer une interface de transition + adapter pattern.",
+    "short_term": "Planifier migration sur 2-3 sprints avec feature flag.",
+    "code_template": "// Adapter pattern — 10 sites à migrer progressivement\npublic interface RunMetricsPort {\n    String track(String arg, String context); // v2\n}\n\n// Adapter legacy\npublic class RunMetricsAdapter implements RunMetricsPort {\n    private final RunMetrics delegate;\n    @Override\n    public String track(String arg, String context) {\n        return delegate.track(arg); // bridge v1→v2\n    }\n}\n"
+  },
+  "duration_ms": 6502,
+  "breaking": true
+}
+[ROI] Loggué dans /project/.java-legacy-agent/impact-roi.csv
