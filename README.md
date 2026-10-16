@@ -63,13 +63,14 @@ microbenchmark sans LLM.
 
 | Métrique | Valeur | Backend | Méthode et source |
 |---|---|---|---|
-| F1 (`AgentEvaluator`) | **0.808** — médiane de 3 passages, étendue 0.763–0.844 | Ollama local `qwen2.5-coder:7b`, température 0.1 | `golden_dataset_3cases.json`, après correction `FIELD_PATTERN`. Source : [`results/f1_ollama.json`](results/f1_ollama.json), sorties brutes dans `results/raw/` |
+| F1 global (`AgentEvaluator`) — **référence** | **0.808** — médiane de **3 passages**, étendue 0.763–0.844 | Ollama local `qwen2.5-coder:7b`, température 0.1 | **3 cas** (`golden_dataset_3cases.json` : cas1–cas3), mesurés le 2026-09-30 au commit `901ba03` (après correction `FIELD_PATTERN`). Source : [`results/f1_ollama.json`](results/f1_ollama.json), sorties brutes dans `results/raw/` |
 | Speedup de parallélisation | **×2.88** — médianes 20776 ms (1 worker) vs 7218 ms (4 workers) | Claude Haiku | `scripts/benchmark_speedup.py`, 3 runs par configuration, valeurs brutes dans le README ci-dessous |
 | Surcoût du recorder, côté agent | **0.448 µs/span** — étendue 0.391–0.492 | aucun (microbenchmark, sans LLM) | 5 séries de 100 000 spans après chauffe. Source : [`results/flightrec_bench.json`](results/flightrec_bench.json) |
 | Débit d'écriture du recorder | **23 145 spans/s** — 50 000 écrits, 0 perdu | aucun (TimescaleDB local) | idem, source : [`results/flightrec_bench.json`](results/flightrec_bench.json) |
 | Charge sortante (chemin cloud) — **squelette AST de la phase `analyze` uniquement** | 288–378 caractères | Claude Haiku | Vrai **seulement** pour `analyzeJavaClassWithAst` (`JavaDocumentationAgent.java:168`, charge choisie en `:173` via `toAnonymizedPromptContext`), appelé par le pipeline (`LegacyMigrationOrchestrator.java:175`) : signatures, types de champs, complexité cyclomatique, imports — pas de corps de méthode, pas de littéral SQL. **Faux pour `analyzeJavaClass` (`JavaDocumentationAgent.java:154-157`), qui envoie le code source brut, sans garde `isCloudActive()`**, sur les modes `plan` (`Main.java:152`), démo sans argument (`Main.java:214`) et `eval` (`EvalMain.java:265`). La phase `report` envoie en outre les spécifications produites par le LLM, sans anonymisation (`LegacyMigrationOrchestrator.java:330`, `:340`). Correction prévue au Lot 2 de `specs/gouvernance-spec.md`. |
 
-**F1 avant / après la correction `FIELD_PATTERN`**, mêmes modèle, empreinte et température
+**F1 avant / après la correction `FIELD_PATTERN`**, sur **3 cas** (`golden_dataset_3cases.json`),
+**3 passages par série**, mêmes modèle, empreinte et température
 ([`results/f1_ollama.json`](results/f1_ollama.json)) :
 
 | | Composante déterministe (regex, sans LLM) | F1 global — médiane | F1 global — étendue |
@@ -82,8 +83,27 @@ exacte et identique aux 3 passages de chaque série. Le F1 global inclut en plus
 et ses deux étendues se touchent presque — le présenter comme « +0.07 grâce à la correction »
 serait une surinterprétation.
 
+**Toutes les mesures du F1 global, chacune avec son jeu de données.** Un F1 n'est comparable
+qu'à un F1 du même jeu de données, du même backend et de la même méthode (médiane de N passages).
+
+| F1 global | Jeu de données | Passages | Backend | Date, commit | Source |
+|---|---|---|---|---|---|
+| **0.808** (référence Ollama) | 3 cas — `golden_dataset_3cases.json` | 3, médiane | Ollama `qwen2.5-coder:7b` | 2026-09-30, `901ba03` | `results/f1_ollama.json` |
+| 0.737 (avant `FIELD_PATTERN`) | 3 cas — `golden_dataset_3cases.json` | 3, médiane | Ollama | 2026-09-30, `9b98b6b` | `results/f1_ollama.json` |
+| 0.792 (contrôle du Lot 1) | 3 cas — `golden_dataset_3cases.json` | 1 | Ollama | 2026-10-09 | `eval/reports/2026-10-09T100546Z_full_3704.json` |
+| 0.840 (référence Haiku, 3 cas) | cas1–cas3 extraits des passages sur `golden_dataset.json` | 5, médiane | Claude Haiku | 2026-10-09 | `eval/reports/2026-10-09T100546Z_full_15820.json` |
+| 0.882 (référence Haiku, 5 cas) | 5 cas — `golden_dataset.json` | 5, médiane | Claude Haiku | 2026-10-09 | idem |
+| 0.759 (Lot 2, avec redaction) | 3 cas — `golden_dataset_3cases.json` | 3, médiane | Ollama | 2026-10-09 | `eval/reports/2026-10-09T141528Z_full_17736.json` |
+| 0.759 (Lot 2, `LLM_REDACTION=off`) | 3 cas — `golden_dataset_3cases.json` | 3, médiane | Ollama | 2026-10-09 | `eval/reports/2026-10-09T143257Z_full_10160.json` |
+| 0.773 (Lot 3, avant) | 3 cas — `golden_dataset_3cases.json` | 3, médiane | Ollama | 2026-10-16, `4212b0e` | `eval/reports/2026-10-16T130140Z_full_55436.json` |
+| 0.778 (Lot 3, après) | 3 cas — `golden_dataset_3cases.json` | 3, médiane | Ollama | 2026-10-16, `fce3f9d` | `eval/reports/2026-10-16T132348Z_full_55500.json` |
+| 0.757 — **historique** | 3 cas d'origine (aujourd'hui `golden_dataset_3cases.json`) | non consigné | non consigné | avant `901ba03` | — (non reproductible) |
+| 0.802 — **historique** | 5 cas — `golden_dataset.json` | non consigné | non consigné | avant `901ba03` | — |
+
 **×2.50 est une mesure antérieure** du même speedup, sur une autre machine, également sur Claude
-Haiku. Elle est conservée plus bas pour mémoire, pas comme valeur courante.
+Haiku. Elle est conservée plus bas pour mémoire, pas comme valeur courante. **Ni ×2.88 ni ×2.50
+n'ont été remesurés depuis** : les lots de gouvernance n'ont pas lancé le benchmark (backend
+cloud exclu, faute de budget API). Chacun reste attribué à sa mesure d'origine.
 
 **Revision note.** The earlier ×1.9 speedup figure is retracted, not superseded by a bigger
 number. `JavaParser` (JavaParser library) was not thread-safe: `AstParserAgent` shared one
@@ -127,24 +147,26 @@ dur dans le source. 5 cas : les 3 originaux (EJB `ClientServiceBean`, Struts `Co
 Singleton `ConfigurationManager`) inchangés, + 2 nouveaux (`InvoiceDao` — injection SQL et fuite de
 ressource ; `AuditLogServiceImpl` — exception avalée silencieusement).
 
-**0.802 sur les 5 cas est un chiffre HISTORIQUE**, mesuré avant la correction `FIELD_PATTERN` et
+**0.802 sur les 5 cas (`golden_dataset.json`) est un chiffre HISTORIQUE**, mesuré avant la correction `FIELD_PATTERN` et
 donc périmé. Les 2 cas ajoutés évitaient par construction le bug décrit plus bas, ce qui tirait
 mécaniquement la moyenne `DependencyMapper` vers le haut : ce n'était pas une amélioration du
 pipeline, seulement un effet de composition du dataset. La valeur courante est celle du tableau
-de tête, mesurée sur les 3 cas historiques après correction.
+de tête, mesurée sur les 3 cas historiques (`golden_dataset_3cases.json`) après correction.
 
 **0.757 — chiffre HISTORIQUE, plus comparable à rien d'actuel.** À l'époque de l'externalisation
-du dataset, ré-exécuter `EvalMain` sur les 3 cas d'origine seuls redonnait exactement 0.757, ce
+du dataset, ré-exécuter `EvalMain` sur les 3 cas d'origine seuls (aujourd'hui
+`golden_dataset_3cases.json` ; nombre de passages non consigné) redonnait exactement 0.757, ce
 qui confirmait que le passage du hardcode au chargement JSON n'avait rien changé au calcul. Mais
 ce 0.757 **reposait sur le bug `FIELD_PATTERN`**, corrigé depuis : la comparaison directe avec
 toute mesure actuelle n'a plus de sens. Il n'est conservé ici que comme repère historique.
 
 **Limite connue — le F1 n'est pas parfaitement reproductible d'un run à l'autre.** La composante
 déterministe (`DependencyMapperAgent`, regex, sans LLM) est bit-identique entre deux runs
-indépendants sur les mêmes 3 cas (F1 = 0.571 / 0.933 / 0.000, à chaque fois). Les composantes qui
+indépendants sur les mêmes 3 cas (`golden_dataset_3cases.json` ; F1 = 0.571 / 0.933 / 0.000, à
+chaque fois, avant correction `FIELD_PATTERN`). Les composantes qui
 dépendent du LLM (rappel de mots-clés sur risques et responsabilités) varient réellement d'un
 appel à l'autre, même à température 0.1 — observé concrètement lors de cette session : le F1
-"Risques" du cas 1 est sorti à 0.923 puis 0.833 sur deux runs successifs, mêmes code et mêmes clés
+"Risques" du cas 1 (même jeu) est sorti à 0.923 puis 0.833 sur deux runs successifs, mêmes code et mêmes clés
 de vérité. Traiter un F1 comme une valeur figée serait trompeur : ce sont des points de mesure,
 pas des constantes. "0.757" et "0.802" sont de surcroît antérieurs à la correction
 `FIELD_PATTERN` — purement historiques.
@@ -205,7 +227,8 @@ qu'aucune tolérance n'est validée pour un backend, le contrôle LLM rend `NON_
 
 Le contrôle déterministe est exact dans les deux sens : un F1 qui **monte** sans explication
 est aussi une régression à examiner. Par exemple, neutraliser l'extraction `implements` fait
-passer le cas 1 de 0.714 à 0.769, parce qu'un faux positif disparaît.
+passer le cas 1 de 0.714 à 0.769 (composante déterministe, `golden_dataset.json`), parce qu'un
+faux positif disparaît.
 
 **État réel :**
 - **En CI, à chaque push** : seul le contrôle déterministe tourne, et il est bloquant.
@@ -290,8 +313,9 @@ la politique appliquée, jamais une valeur.
   `DecoratorTransparencyTest` (requête identique avec et sans décorateur, sans LLM). Son F1
   ne dit donc rien de l'analyse d'un code qui contient des secrets.
 - **Baisse du F1 global observée le jour de la livraison, cause non établie.** Les 6 passages
-  Ollama du 2026-10-09 sont **sous la médiane de la baseline** (0.808), avec comme sans
-  filtrage : médiane 0.759115 dans les deux séries (rapports dans
+  Ollama du 2026-10-09 (`golden_dataset_3cases.json`, 3 passages par série) sont **sous la
+  médiane de la baseline** (0.808, même jeu), avec comme sans filtrage : médiane 0.759115 dans
+  les deux séries (rapports dans
   [`eval/reports/`](eval/reports/LISEZMOI.md)). Le chemin `LLM_REDACTION=off` retire le
   décorateur : il équivaut au chemin d'avant le Lot 2. La baisse n'est donc pas imputable
   au filtrage. Hypothèse : dérive de l'environnement, **non démontrée**. L'empreinte du

@@ -160,6 +160,19 @@ Réponds précisément, en citant fichiers et lignes :
 
 ---
 
+## Prochain lot (à spécifier)
+
+**Premier point — E8 de `docs/GOVERNANCE.md` : un scan échoué est rapporté comme « aucun impact ».**
+`BreakingChangeDetector.analyze` rattrape l'échec du scan et renvoie la sévérité `NONE` : l'API
+`/impact` répond 200 et le mode `impact` sort en 0. Les hooks traitent désormais ce cas comme un
+échec, mais un appelant direct (API, CLI) lit « aucun impact ». Un refus d'`AGENT_STATE_DIR`
+emprunte le même chemin. Attendu : un échec explicite (code de sortie non nul, HTTP 500
+générique), sans repli silencieux, avec un test.
+
+Les autres écarts restants (E5, E9 à E12) sont listés dans `docs/GOVERNANCE.md`.
+
+---
+
 ## Rapport final attendu (après chaque lot)
 
 1. Ce qui a été fait (fichiers créés / modifiés).
