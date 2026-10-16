@@ -160,16 +160,20 @@ Réponds précisément, en citant fichiers et lignes :
 
 ---
 
-## Prochain lot (à spécifier)
+## Lot 4 — E8 : un scan échoué ne produit plus « aucun impact » (branche `gov/lot4-e8`)
 
-**Premier point — E8 de `docs/GOVERNANCE.md` : un scan échoué est rapporté comme « aucun impact ».**
+**Traité au Lot 4** (détail et preuves : `docs/GOVERNANCE.md`, écart E8 et section « Analyse d'impact »).
+
+**Point de départ — E8 de `docs/GOVERNANCE.md` : un scan échoué était rapporté comme « aucun impact ».**
 `BreakingChangeDetector.analyze` rattrape l'échec du scan et renvoie la sévérité `NONE` : l'API
 `/impact` répond 200 et le mode `impact` sort en 0. Les hooks traitent désormais ce cas comme un
 échec, mais un appelant direct (API, CLI) lit « aucun impact ». Un refus d'`AGENT_STATE_DIR`
 emprunte le même chemin. Attendu : un échec explicite (code de sortie non nul, HTTP 500
 générique), sans repli silencieux, avec un test.
 
-Les autres écarts restants (E5, E9 à E12) sont listés dans `docs/GOVERNANCE.md`.
+Livré : échec fermé (code de sortie 3, HTTP 500 avec le nombre de fichiers seulement, commit bloqué par les hooks), échec dès qu'un seul fichier ne se parse pas, liste d'exclusions justifiée (`impact-exclusions.txt`).
+
+Écarts restants pour un lot suivant : E5, E9 à E12 (`docs/GOVERNANCE.md`). À décider : reconstruire l'image `java-legacy-agent-java-analyzer`, ou faire exécuter au hook le jar de `agent/target` — sans cela, le hook voit encore l'ancien comportement.
 
 ---
 

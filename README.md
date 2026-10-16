@@ -33,7 +33,9 @@ MetricsPusher          → Prometheus metrics (pushed after analyze and report p
 
 ```
 CallGraphAgent + RefactoringAdvisor + RoiLogger
-    → mode `impact` / `serve` (BreakingChangeDetector) : detects breaking changes on a
+    → mode `impact` / `serve` (BreakingChangeDetector) : exit codes 0 (no breaking change),
+      1 (breaking change), 3 (analysis impossible — never reported as « no impact », see
+      docs/GOVERNANCE.md and impact-exclusions.txt) ; detects breaking changes on a
       single method, suggests a refactoring strategy, logs blocking changes to CSV
 
 DependencyMapperAgent + AgentEvaluator

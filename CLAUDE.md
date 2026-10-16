@@ -46,6 +46,9 @@ Observabilité : Prometheus (Pushgateway) / Grafana / Phoenix OTEL
 - Moindre privilège : `AccessAllowlistTest` liste les classes autorisées à écrire ou lire
   sur disque, ouvrir le réseau, construire un modèle LLM, lire l'environnement. Toute
   modification de cette liste impose de mettre à jour la matrice de `docs/GOVERNANCE.md`.
+- Mode `impact` : codes de sortie 0 (rien de cassant), 1 (cassant), **3 (analyse impossible,
+  jamais « aucun impact »)**. Un seul fichier non parsé fait échouer l'analyse ; seul recours :
+  `impact-exclusions.txt` (justification obligatoire, pas de `..`).
 - Hooks d'impact : `sh hooks/test-impact-lib.sh` (faux docker). Après fusion dans master,
   réinstaller le pre-commit : `cp hooks/pre-commit .git/hooks/pre-commit`.
 - Redaction avant tout LLM (package `governance`, posée par `LlmModelFactory.create()` sur
