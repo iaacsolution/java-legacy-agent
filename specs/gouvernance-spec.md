@@ -173,6 +173,17 @@ générique), sans repli silencieux, avec un test.
 
 Livré : échec fermé (code de sortie 3, HTTP 500 avec le nombre de fichiers seulement, commit bloqué par les hooks), échec dès qu'un seul fichier ne se parse pas, liste d'exclusions justifiée (`impact-exclusions.txt`).
 
+**Reste à faire (sans code à ce stade) :**
+- **Décision sur l'image Docker du hook ET réinstallation du pre-commit, ensemble.**
+  Reconstruire `java-legacy-agent-java-analyzer`, ou faire exécuter au hook le jar de
+  `agent/target`. Puis recopier `hooks/pre-commit` dans `.git/hooks/` : l'actuel, l'ancienne
+  version, ignore le code de sortie et laisse passer en silence. Les deux s'activent d'un coup.
+- **Message d'erreur de la CLI** : vérifier qu'une exception imprévue
+  (`ImpactScanException` « analyse impossible (…) : message ») n'affiche ni chemin absolu ni
+  donnée sensible. Le message d'origine de l'exception est aujourd'hui repris tel quel dans la
+  sortie CLI (`BreakingChangeDetector.java:123`) ; côté `/impact`, seul le nombre de fichiers
+  part au client.
+
 Écarts restants pour un lot suivant : E5, E9 à E12 (`docs/GOVERNANCE.md`). **Décision reportée** : reconstruire l'image `java-legacy-agent-java-analyzer`, ou faire exécuter au hook le jar de `agent/target`. **Tant que l'image n'est pas reconstruite, le cas (3) — fichier non parsé — n'est PAS protégé côté hook** : l'ancien jar de l'image répond « Changement sûr » et le commit passe. Le pre-commit installé (`.git/hooks/`) sera mis à jour avec cette décision.
 
 ---
