@@ -89,7 +89,7 @@ Lot 3 de [`specs/gouvernance-spec.md`](../specs/gouvernance-spec.md). État rele
 | E3 | Le nettoyage du handoff temporaire avalait ses erreurs (`catch (IOException ignored)`) : les spécifications produites par le LLM pouvaient rester sur disque sans trace | échecs renvoyés et journalisés en WARN | `HandoffCleanupTest` |
 | E4 | `ImpactServer`, sans authentification, renvoyait `e.getMessage()` au client, non échappé (chemins du serveur) | réponse 500 générique ; le détail reste dans les journaux | `ImpactServerErrorTest` |
 | E6 | Le hook pre-commit laissait passer le commit en silence quand l'analyse d'impact échouait (Docker absent, démon arrêté, image manquante, analyse plantée) | chaque cas bloque le commit, avec un diagnostic distinct et un rappel de `--no-verify` | `hooks/test-impact-lib.sh` (14 cas, faux docker, en CI). **Constaté en conditions réelles** : l'image `java-legacy-agent-java-agent` n'existait plus (service « java-agent » scindé en `java-analyzer` / `java-reporter`) ; l'ancien hook laissait passer, le nouveau bloque ([preuve](../eval/reports/2026-10-16_hook_image_absente/LISEZMOI.md)). Défaut corrigé : `java-legacy-agent-java-analyzer`, surchargeable par `AGENT_IMAGE` ; bout en bout vérifié sur cette image |
-| E8 | Un **scan échoué était rapporté comme « aucun impact »** : `BreakingChangeDetector` rattrapait toute exception et renvoyait la sévérité `NONE` (API 200, CLI code 0). Pire : un fichier non parsé faisait disparaître ses appels, et l'outil répondait « Changement sûr — aucun appelant détecté », sans aucun marqueur | **Lot 4.** Échec fermé : `ImpactScanException` (`BreakingChangeDetector.java:118`, `:123`) ; un seul fichier non parsé fait échouer l'analyse (`CallGraphAgent.java:127`), jamais mis en cache. CLI : code de sortie **3** (`Main.java:76`, `:102`) ; `/impact` : HTTP 500 avec le nombre de fichiers seulement (`ImpactServer.java:85`) ; hooks : commit bloqué, code 14 (`hooks/impact-lib.sh:83`, `:92`). Recours : liste d'exclusions justifiée | `ImpactScanFailureTest` (11 cas), `ImpactServerScanFailureTest`, `hooks/test-impact-lib.sh` (26 cas). Tests écrits d'abord : 10 sur 11 rouges contre l'ancien comportement. Mutations : 6 sur 6 détectées |
+| E8 | Un **scan échoué était rapporté comme « aucun impact »** : `BreakingChangeDetector` rattrapait toute exception et renvoyait la sévérité `NONE` (API 200, CLI code 0). Pire : un fichier non parsé faisait disparaître ses appels, et l'outil répondait « Changement sûr — aucun appelant détecté », sans aucun marqueur | **Lot 4.** Échec fermé : `ImpactScanException` (`BreakingChangeDetector.java:118`, `:123`) ; un seul fichier non parsé fait échouer l'analyse (`CallGraphAgent.java:127`), jamais mis en cache. CLI : code de sortie **3** (`Main.java:76`, `:102`) ; `/impact` : HTTP 500 avec le nombre de fichiers seulement (`ImpactServer.java:85`) ; hooks : commit bloqué, code 14 (`hooks/impact-lib.sh:83`, `:92`) — **mais le cas « fichier non parsé » n'est PAS protégé côté hook tant que l'image n'est pas reconstruite** (voir « Analyse d'impact »). Recours : liste d'exclusions justifiée | `ImpactScanFailureTest` (11 cas), `ImpactServerScanFailureTest`, `hooks/test-impact-lib.sh` (26 cas). Tests écrits d'abord : 10 sur 11 rouges contre l'ancien comportement. Mutations : 6 sur 6 détectées |
 | E7 | Le garde-fou anti-Docker de Claude Code était appelé par un chemin relatif : il tombait dès que le shell quittait la racine du dépôt | appel par `$CLAUDE_PROJECT_DIR` ; le hook Stop se place à la racine | testé depuis `agent/src` (voir le rapport du Lot 3) |
 
 ### Restants, documentés
@@ -115,8 +115,15 @@ Lot 3 de [`specs/gouvernance-spec.md`](../specs/gouvernance-spec.md). État rele
 Les hooks (`hooks/impact-lib.sh`) bloquent le commit sur le code 3 ou sur `scan_failed` (code
 14, diagnostic distinct). Ils bloquent aussi une sortie sans verdict, ou un « Scan AST échoué »
 venant d'une **image ancienne** (code 13). Le hook exécute le jar **de l'image**
-(`java-legacy-agent-java-analyzer`), pas celui de `agent/target` : tant que l'image n'est pas
-reconstruite, un fichier non parsé y donne encore « Changement sûr », sans marqueur.
+(`java-legacy-agent-java-analyzer`), pas celui de `agent/target`.
+
+> **Tant que l'image n'est pas reconstruite, le cas (3) — un fichier qui ne se parse pas — n'est
+> PAS protégé côté hook** : l'ancien jar de l'image répond « Changement sûr », sans aucun
+> marqueur, et le commit passe. Les cas (1) projet absent et (2) dossier d'état refusé restent
+> bloqués (l'ancien jar écrit « Scan AST échoué », code 13). La CLI, l'API `/impact` et les
+> tests utilisent le nouveau code et sont protégés. Décision reportée (reconstruire l'image, ou
+> faire exécuter au hook le jar de `agent/target`) ; le pre-commit installé dans `.git/hooks/`
+> sera mis à jour en même temps.
 
 **Limite du niveau de langage du parseur.** `CallGraphAgent` parse avec JavaParser au niveau
 **Java 17** (`CallGraphAgent.java:32`). Un fichier qui utilise une syntaxe que ce niveau ne

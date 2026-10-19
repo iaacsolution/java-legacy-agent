@@ -173,7 +173,7 @@ générique), sans repli silencieux, avec un test.
 
 Livré : échec fermé (code de sortie 3, HTTP 500 avec le nombre de fichiers seulement, commit bloqué par les hooks), échec dès qu'un seul fichier ne se parse pas, liste d'exclusions justifiée (`impact-exclusions.txt`).
 
-Écarts restants pour un lot suivant : E5, E9 à E12 (`docs/GOVERNANCE.md`). À décider : reconstruire l'image `java-legacy-agent-java-analyzer`, ou faire exécuter au hook le jar de `agent/target` — sans cela, le hook voit encore l'ancien comportement.
+Écarts restants pour un lot suivant : E5, E9 à E12 (`docs/GOVERNANCE.md`). **Décision reportée** : reconstruire l'image `java-legacy-agent-java-analyzer`, ou faire exécuter au hook le jar de `agent/target`. **Tant que l'image n'est pas reconstruite, le cas (3) — fichier non parsé — n'est PAS protégé côté hook** : l'ancien jar de l'image répond « Changement sûr » et le commit passe. Le pre-commit installé (`.git/hooks/`) sera mis à jour avec cette décision.
 
 ---
 
