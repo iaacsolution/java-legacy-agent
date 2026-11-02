@@ -40,6 +40,13 @@ DependencyMapperAgent + AgentEvaluator
     → mode `eval` (EvalMain) : F1 scoring against golden_dataset.json (5 cases, see
       "Golden dataset" below — not hardcoded anymore)
 ```
+## Reusable Claude Code skills from this project
+
+The methods behind this pipeline are packaged as standalone Claude Code skills:
+
+- **[Java Legacy Analyzer](https://agensi.io/skills/java-legacy-analyzer)** — deterministic fact extraction from a Java codebase (types, fields, dependencies, migration order) before any LLM step, so the model documents facts instead of guessing them.
+- **[Secret Redactor](https://agensi.io/skills/secret-redactor)** (free) — masks credentials, tokens and personal data before code or logs reach a model.
+- **[Spec-Driven Delivery Kit](https://agensi.io/skills/spec-driven-delivery-kit)** — the spec → plan → batch workflow used to build this repo: review sub-agents, a Stop hook that blocks unfinished batches, and a "no unmeasured number" rule.
 
 ## Gouvernance — état des lots
 
